@@ -4,7 +4,7 @@ import SwiftUI
 struct forcemeApp: App {
     var body: some Scene {
         WindowGroup {
-            VoiceLoopView()
+            RootView()
         }
     }
 }

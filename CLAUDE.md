@@ -18,7 +18,7 @@ iOS SwiftUI app. Records voice, transcribes with WhisperKit on-device, reads res
 
 `SpeechEngine` is created as `@State` in `VoiceLoopView` and loaded once via `.task`. Models download from HuggingFace on first run and are cached locally by ArgmaxOSS.
 
-WhisperKit model in use: `openai_whisper-large-v3-v20240930_626MB` (best multilingual accuracy per Argmax recommendation). TTSKit model: `qwen3TTS_0_6b` (fast, runs on all devices).
+WhisperKit model in use: `openai_whisper-small_216MB` (216MB, multilingual, fast load; large-v3 was too slow to load in practice). TTSKit model: `qwen3TTS_0_6b` (fast, runs on all devices).
 
 ## Code Style
 
