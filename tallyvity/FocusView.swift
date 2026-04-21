@@ -169,7 +169,8 @@ struct FocusView: View {
             RotaryTimePicker(
                 value: $loopCount,
                 values: Array(1...6),
-                label: "Loops"
+                label: "Loops",
+                unit: "amount"
             )
             .frame(maxWidth: .infinity)
         }

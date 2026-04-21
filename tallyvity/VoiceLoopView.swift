@@ -10,7 +10,7 @@ struct VoiceLoopView: View {
 
             switch engine.state {
             case .requestingPermission:
-                loadingOverlay(message: "Requesting microphone access…", progress: nil)
+                loadingOverlay(message: PromptStore.shared.string(for: "permission_denied_overlay"), progress: nil)
 
             case .permissionDenied:
                 permissionDeniedView
@@ -49,7 +49,7 @@ struct VoiceLoopView: View {
                 .foregroundStyle(.secondary)
                 .animation(.easeInOut, value: engine.state.label)
 
-            Text(engine.transcript.isEmpty ? "Tap to record" : engine.transcript)
+            Text(engine.transcript.isEmpty ? PromptStore.shared.string(for: "tap_to_record") : engine.transcript)
                 .font(.title3)
                 .fontWeight(.regular)
                 .multilineTextAlignment(.center)
@@ -88,9 +88,9 @@ struct VoiceLoopView: View {
             Image(systemName: "mic.slash")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("Microphone access required")
+            Text(PromptStore.shared.string(for: "mic_access_required"))
                 .font(.title3)
-            Text("Enable in Settings to use this app.")
+            Text(PromptStore.shared.string(for: "mic_access_settings"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Button("Open Settings") { engine.openSettings() }
@@ -155,14 +155,14 @@ struct VoiceLoopView: View {
 extension SpeechEngine.State {
     var label: String {
         switch self {
-        case .idle:                 "ready"
-        case .requestingPermission: "requesting access"
-        case .permissionDenied:     "no microphone access"
-        case .loadingModels:        "loading"
-        case .recording:            "recording — tap to stop"
-        case .transcribing:         "transcribing"
-        case .speaking:             "speaking"
-        case .error:                "error"
+        case .idle:                 PromptStore.shared.string(for: "ready")
+        case .requestingPermission: PromptStore.shared.string(for: "requesting_access")
+        case .permissionDenied:     PromptStore.shared.string(for: "no_microphone_access")
+        case .loadingModels:        PromptStore.shared.string(for: "loading")
+        case .recording:            PromptStore.shared.string(for: "recording_hint")
+        case .transcribing:         PromptStore.shared.string(for: "transcribing")
+        case .speaking:             PromptStore.shared.string(for: "speaking")
+        case .error:                PromptStore.shared.string(for: "error")
         }
     }
 

@@ -5,7 +5,7 @@ import torch
 from qwen_tts import Qwen3TTSModel
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Qwen3 TTS Premade Voice Generation")
+    parser = argparse.ArgumentParser(description="Qwen3 TTS Premade Voice Generation Worker")
     parser.add_argument("--speaker", default="Ryan", help="Speaker name (e.g., Ryan, Aiden, Vivian)")
     parser.add_argument("--text", default="Testing the internal speaker embedding.", help="Text to synthesize")
     parser.add_argument("--language", default="English", help="Language label")

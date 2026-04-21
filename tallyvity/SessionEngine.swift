@@ -73,11 +73,7 @@ final class SessionEngine {
     private var sessionTask: Task<Void, Never>?
     private var timerTask: Task<Void, Never>?
 
-    private var prerenderedQuestions: [String] = [
-        "Tell me what you actually finished.",
-        "Name the main thing that got in the way.",
-        "One change you'd make next time."
-    ]
+    private var prerenderedQuestions: [String] = PromptStore.shared.presets(for: "default_qa_questions")
 
     private var recordingStopped = false
     private var pendingPhoto: UIImage? = nil
@@ -92,74 +88,15 @@ final class SessionEngine {
     private var sessionMotivationLevel: Int?
     private var needsStarterDecision: Bool = false
     private var baselinePhotoSummary: String? = nil
-    private let workStartPrompts: [String] = [
-        "Gentle start. {minutes} for your goal.",
-        "Settling in for {minutes}.",
-        "One calm block: {minutes}.",
-        "Take it steady for {minutes}.",
-        "Small steps now, {minutes} total.",
-        "Your focus window is {minutes}.",
-        "Quiet pace, {minutes}, begin.",
-        "Here is your {minutes} work block.",
-        "Lets ease into {minutes} of progress.",
-        "This round is {minutes}. No rush.",
-        "Start softly: {minutes}.",
-        "You have {minutes}. Keep it simple."
-    ]
-    private let goalPromptPresets: [String] = [
-        "What matters most for this session?",
-        "Name one clear goal for this block.",
-        "What do you want done by the end?",
-        "Give me your focus goal in one line.",
-        "Whats the main outcome you want today?"
-    ]
-    private let photoPromptPresets: [String] = [
-        "Want a quick baseline photo?",
-        "Optional photo check-in before you begin.",
-        "Take a quick starting photo if you want.",
-        "Baseline photo is optional, your call.",
-        "Add a start photo if it helps."
-    ]
-    private let roundEndPresets: [String] = [
-        "Nice effort. Lets check progress on {goal}.",
-        "Good work. Quick review for {goal}.",
-        "Round complete. Where did {goal} move forward?",
-        "Solid block. Lets reflect on {goal}.",
-        "Great, pause and check progress on {goal}."
-    ]
-    private let scorePromptPresets: [String] = [
-        "Rate your output this round, one to five.",
-        "Rate your output this round for {goal}.",
-        "Choose a one-to-five output rating for this block.",
-        "Set an output score for this round.",
-        "Give this round an output rating, one to five."
-    ]
-    private let breakRecoveryPresets: [String] = [
-        "Step away from the screen for a minute.",
-        "Look at something far away for sixty seconds.",
-        "Relax your eyes and shoulders before the next block."
-    ]
-    private let breakPromptPresets: [String] = [
-        "Saved. Take {breakMinutes} to reset.",
-        "Nice save. Rest for {breakMinutes}.",
-        "Progress stored. {breakMinutes} break now.",
-        "Good round. Take {breakMinutes}, then continue.",
-        "Locked in. Enjoy {breakMinutes} of rest."
-    ]
-    private let nextSessionPromptPresets: [String] = [
-        "Session {sessionNumber} begins now. Back to {goal}.",
-        "Round {sessionNumber} starts now. Continue {goal}.",
-        "Next block starts now: session {sessionNumber}.",
-        "Session {sessionNumber}, gentle restart on {goal}.",
-        "Here comes session {sessionNumber}. Keep {goal} moving."
-    ]
-    private let sessionDonePresets: [String] = [
-        "Session complete. You showed up for {goal}.",
-        "Thats the full session. Nice work on {goal}.",
-        "You are done for now. Progress made on {goal}.",
-        "Session closed. You moved {goal} forward.",
-        "Complete. You gave {goal} real effort today."
-    ]
+    private var workStartPrompts: [String] { PromptStore.shared.presets(for: "work_start") }
+    private var goalPromptPresets: [String] { PromptStore.shared.presets(for: "goal_capture") }
+    private var photoPromptPresets: [String] { PromptStore.shared.presets(for: "photo_baseline") }
+    private var roundEndPresets: [String] { PromptStore.shared.presets(for: "round_end") }
+    private var scorePromptPresets: [String] { PromptStore.shared.presets(for: "self_score") }
+    private var breakRecoveryPresets: [String] { PromptStore.shared.presets(for: "break_recovery") }
+    private var breakPromptPresets: [String] { PromptStore.shared.presets(for: "break_start") }
+    private var nextSessionPromptPresets: [String] { PromptStore.shared.presets(for: "next_session") }
+    private var sessionDonePresets: [String] { PromptStore.shared.presets(for: "session_done") }
     private var generatedVoiceLines: [String: [String]] = [:]
 
     init(speech: SpeechEngine, gemma: GemmaEngine) {
@@ -319,7 +256,7 @@ final class SessionEngine {
         withAnimation { phase = .preparingAudio }
         let speechReady = await speech.ensureReady()
         guard speechReady else {
-            withAnimation { phase = .error("Audio models are still unavailable. Please try again.") }
+            withAnimation { phase = .error(PromptStore.shared.string(for: "error_models_unavailable")) }
             return
         }
 
@@ -331,11 +268,7 @@ final class SessionEngine {
         memoryRecallText = nil
         finalArtifact = nil
         sessionMotivationLevel = motivation
-        prerenderedQuestions = [
-            "Tell me what you actually finished.",
-            "Name the main thing that got in the way.",
-            "One change you'd make next time."
-        ]
+        prerenderedQuestions = PromptStore.shared.presets(for: "default_qa_questions")
         baselinePhotoSummary = nil
         needsStarterDecision = motivation <= 2
 
@@ -345,7 +278,7 @@ final class SessionEngine {
 
         // Goal capture
         withAnimation { phase = .goalCapture }
-        await sayFixed(cue: "goal_prompt", fallback: goalPromptPresets.randomElement() ?? "Tell me your goal for today.")
+        await sayFixed(cue: "goal_prompt", fallback: PromptStore.shared.fallback(for: "goal_capture"))
         guard !Task.isCancelled else { return }
         let goal = await listen(maxDuration: 30)
         guard !Task.isCancelled, !goal.isEmpty else {
@@ -407,7 +340,7 @@ final class SessionEngine {
         withAnimation { phase = .backgroundPrep(loopNumber: currentLoopNumber) }
         persistCheckpoint()
 
-        sayNonBlocking(workStartPrompt())
+        sayFixedNonBlocking(cue: "work_start_prompt", fallback: workStartPrompt())
         updateScreenAwake(enabled: true)
         phase = .workActive(loopNumber: currentLoopNumber)
         persistCheckpoint()
@@ -420,7 +353,7 @@ final class SessionEngine {
         if shouldExtend {
             workDuration = 10 * 60
             withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
-            await say("Extension added. Ten more minutes.")
+            await say(PromptStore.shared.fallback(for: "extension_added"))
             _ = await runTimer(duration: workDuration)
             withAnimation { phase = .roundEnd }
         }
@@ -433,7 +366,7 @@ final class SessionEngine {
 
         if needsStarterDecision {
             needsStarterDecision = false
-            await sayFixed(cue: "starter_continue_prompt", fallback: "Do you want to continue into the full flow? Say yes or no.")
+            await sayFixed(cue: "starter_continue_prompt", fallback: PromptStore.shared.fallback(for: "starter_continue"))
             let decision = await listen(maxDuration: 6).lowercased()
             if decision.contains("no") || decision.contains("stop") {
                 await finishSession()
@@ -493,7 +426,7 @@ final class SessionEngine {
 
         guard !Task.isCancelled else { return }
         withAnimation { phase = .selfScore(loopNumber: currentLoopNumber) }
-        sayNonBlocking(selectVoiceLine(
+        sayFixedNonBlocking(cue: "self_score_prompt", fallback: selectVoiceLine(
             cue: "self_score",
             fallback: scorePromptPresets,
             replacements: ["goal": currentGoal]
@@ -517,7 +450,7 @@ final class SessionEngine {
         } else {
             let breakDuration = completedLoops.count >= max(1, totalLoops - 1) ? longBreakDuration : shortBreakDuration
             let breakMinutes = max(1, Int(round(breakDuration / 60)))
-            await say(selectVoiceLine(
+            await sayFixed(cue: "break_start_prompt", fallback: selectVoiceLine(
                 cue: "break_start",
                 fallback: breakPromptPresets,
                 replacements: ["breakMinutes": "\(breakMinutes) minutes", "goal": currentGoal]
@@ -538,14 +471,14 @@ final class SessionEngine {
 
         withAnimation { phase = .breakTime(loopNumber: currentLoopNumber) }
         persistCheckpoint()
-        sayNonBlocking(breakRecoveryPresets.randomElement() ?? "")
+        sayFixedNonBlocking(cue: "break_recovery_prompt", fallback: breakRecoveryPresets.randomElement() ?? "")
         await runTimer(duration: duration)
         guard !Task.isCancelled else { return }
 
         // Transition screen before next loop
         withAnimation { phase = .nextSessionCountdown(loopNumber: currentLoopNumber) }
         persistCheckpoint()
-        await say(selectVoiceLine(
+        await sayFixed(cue: "next_session_prompt", fallback: selectVoiceLine(
             cue: "next_session",
             fallback: nextSessionPromptPresets,
             replacements: ["sessionNumber": "\(currentLoopNumber)", "goal": currentGoal]
@@ -595,7 +528,7 @@ final class SessionEngine {
         store.clearCheckpoint()
         withAnimation { finalArtifact = artifact }
 
-        await say(selectVoiceLine(
+        await sayFixed(cue: "session_done_prompt", fallback: selectVoiceLine(
             cue: "session_done",
             fallback: sessionDonePresets,
             replacements: ["goal": currentGoal]
@@ -672,6 +605,13 @@ final class SessionEngine {
         Task { [weak self] in
             guard let self, !Task.isCancelled else { return }
             await self.speech.speak(text: text)
+        }
+    }
+
+    private func sayFixedNonBlocking(cue: String, fallback: String) {
+        Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            await self.sayFixed(cue: cue, fallback: fallback)
         }
     }
 

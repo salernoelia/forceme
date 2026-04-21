@@ -39,21 +39,21 @@ struct OnboardingView: View {
 
     private var introContent: some View {
         VStack(spacing: 32) {
-            Text("Tallivity")
+            Text(PromptStore.shared.string(for: "onboarding_title"))
                 .font(.system(size: 34, weight: .light, design: .rounded))
                 .foregroundStyle(.primary)
 
-            Text("25-minute focused work sessions.\nVoice-first. No interruptions. All local.")
+            Text(PromptStore.shared.string(for: "onboarding_subtitle"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
 
             VStack(spacing: 8) {
-                Text("Requires a one-time download of ~820 MB")
+                Text(PromptStore.shared.string(for: "onboarding_download_hint"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Text("Speech recognition (~216 MB) and voice synthesis (~600 MB).\nModels run entirely on your device.")
+                Text(PromptStore.shared.string(for: "onboarding_models_info"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
@@ -61,7 +61,7 @@ struct OnboardingView: View {
             }
 
             Button(action: startDownload) {
-                Text("Download & get started")
+                Text(PromptStore.shared.string(for: "onboarding_start_button"))
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
@@ -74,7 +74,7 @@ struct OnboardingView: View {
 
     private var downloadingContent: some View {
         VStack(spacing: 32) {
-            Text("Setting up your models")
+            Text(PromptStore.shared.string(for: "onboarding_setup_title"))
                 .font(.title3.weight(.regular))
                 .foregroundStyle(.primary)
 
@@ -93,7 +93,7 @@ struct OnboardingView: View {
                     .multilineTextAlignment(.center)
             }
 
-            Text("This takes a few minutes on first launch.\nModels are cached — future launches are fast.")
+            Text(PromptStore.shared.string(for: "onboarding_setup_hint"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -108,16 +108,16 @@ struct OnboardingView: View {
 
     private var nameContent: some View {
         VStack(spacing: 28) {
-            Text("What's your name?")
+            Text(PromptStore.shared.string(for: "onboarding_name_title"))
                 .font(.title3.weight(.regular))
                 .foregroundStyle(.primary)
 
-            Text("Used only for the closing sentence at session end.")
+            Text(PromptStore.shared.string(for: "onboarding_name_hint"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
 
-            TextField("First name", text: $name)
+            TextField(PromptStore.shared.string(for: "onboarding_name_placeholder"), text: $name)
                 .font(.title3)
                 .multilineTextAlignment(.center)
                 .textFieldStyle(.plain)
@@ -129,7 +129,7 @@ struct OnboardingView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Button(action: confirmName) {
-                Text("Continue")
+                Text(PromptStore.shared.string(for: "onboarding_continue_button"))
                     .font(.body.weight(.medium))
                     .foregroundStyle(name.trimmingCharacters(in: .whitespaces).isEmpty ? .secondary : .primary)
                     .frame(maxWidth: .infinity)
@@ -144,11 +144,11 @@ struct OnboardingView: View {
 
     private var doneContent: some View {
         VStack(spacing: 24) {
-            Text("Ready, \(settings.userName).")
+            Text(PromptStore.shared.string(for: "onboarding_ready_prefix") + settings.userName + PromptStore.shared.string(for: "onboarding_ready_suffix"))
                 .font(.title3.weight(.regular))
                 .foregroundStyle(.primary)
 
-            Text("You can always change your name in Settings.")
+            Text(PromptStore.shared.string(for: "onboarding_change_name_hint"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

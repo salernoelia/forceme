@@ -1,0 +1,143 @@
+{
+  "voice_prompts": {
+    "goal_capture": {
+      "cue": "goal_prompt",
+      "fallback": "Tell me your goal for today.",
+      "presets": [
+        "What matters most for this session?",
+        "Name one clear goal for this block.",
+        "What do you want done by the end?",
+        "Give me your focus goal in one line.",
+        "Whats the main outcome you want today?"
+      ]
+    },
+    "photo_baseline": {
+      "cue": "photo_baseline_prompt",
+      "fallback": "Optional photo check-in before you begin.",
+      "presets": [
+        "Want a quick baseline photo?",
+        "Optional photo check-in before you begin.",
+        "Take a quick starting photo if you want.",
+        "Baseline photo is optional, your call.",
+        "Add a start photo if it helps."
+      ]
+    },
+    "work_start": {
+      "cue": "work_start_prompt",
+      "presets": [
+        "Gentle start. {minutes} for your goal.",
+        "Settling in for {minutes}.",
+        "One calm block: {minutes}.",
+        "Take it steady for {minutes}.",
+        "Small steps now, {minutes} total.",
+        "Your focus window is {minutes}.",
+        "Quiet pace, {minutes}, begin.",
+        "Here is your {minutes} work block.",
+        "Lets ease into {minutes} of progress.",
+        "This round is {minutes}. No rush.",
+        "Start softly: {minutes}.",
+        "You have {minutes}. Keep it simple."
+      ]
+    },
+    "extension_added": "Extension added. Ten more minutes.",
+    "starter_continue": {
+      "cue": "starter_continue_prompt",
+      "fallback": "Do you want to continue into the full flow? Say yes or no."
+    },
+    "round_end": {
+      "cue": "round_end_prompt",
+      "fallback": "Nice effort. Lets check progress on {goal}.",
+      "presets": [
+        "Nice effort. Lets check progress on {goal}.",
+        "Good work. Quick review for {goal}.",
+        "Round complete. Where did {goal} move forward?",
+        "Solid block. Lets reflect on {goal}.",
+        "Great, pause and check progress on {goal}."
+      ]
+    },
+    "self_score": {
+      "cue": "self_score_prompt",
+      "presets": [
+        "Rate your output this round, one to five.",
+        "Rate your output this round for {goal}.",
+        "Choose a one-to-five output rating for this block.",
+        "Set an output score for this round.",
+        "Give this round an output rating, one to five."
+      ]
+    },
+    "break_recovery": {
+      "cue": "break_recovery_prompt",
+      "presets": [
+        "Step away from the screen for a minute.",
+        "Look at something far away for sixty seconds.",
+        "Relax your eyes and shoulders before the next block."
+      ]
+    },
+    "break_start": {
+      "cue": "break_start_prompt",
+      "presets": [
+        "Saved. Take {breakMinutes} to reset.",
+        "Nice save. Rest for {breakMinutes}.",
+        "Progress stored. {breakMinutes} break now.",
+        "Good round. Take {breakMinutes}, then continue.",
+        "Locked in. Enjoy {breakMinutes} of rest."
+      ]
+    },
+    "next_session": {
+      "cue": "next_session_prompt",
+      "presets": [
+        "Session {sessionNumber} begins now. Back to {goal}.",
+        "Round {sessionNumber} starts now. Continue {goal}.",
+        "Next block starts now: session {sessionNumber}.",
+        "Session {sessionNumber}, gentle restart on {goal}.",
+        "Here comes session {sessionNumber}. Keep {goal} moving."
+      ]
+    },
+    "session_done": {
+      "cue": "session_done_prompt",
+      "presets": [
+        "Session complete. You showed up for {goal}.",
+        "Thats the full session. Nice work on {goal}.",
+        "You are done for now. Progress made on {goal}.",
+        "Session closed. You moved {goal} forward.",
+        "Complete. You gave {goal} real effort today."
+      ]
+    },
+    "default_qa_questions": [
+      "Tell me what you actually finished.",
+      "Name the main thing that got in the way.",
+      "One change you'd make next time."
+    ]
+  },
+  "ui_labels": {
+    "loading_recognition": "Loading speech recognition…",
+    "loading_synthesis": "Loading voice synthesis…",
+    "requesting_mic": "Requesting microphone…",
+    "mic_access_required": "Microphone access required",
+    "mic_access_settings": "Enable in Settings to use this app.",
+    "tap_to_record": "Tap to record",
+    "ready": "ready",
+    "requesting_access": "requesting access",
+    "no_microphone_access": "no microphone access",
+    "loading": "loading",
+    "recording_hint": "recording — tap to stop",
+    "transcribing": "transcribing",
+    "speaking": "speaking",
+    "error": "error",
+    "onboarding_title": "Tallivity",
+    "onboarding_subtitle": "25-minute focused work sessions.\nVoice-first. No interruptions. All local.",
+    "onboarding_download_hint": "Requires a one-time download of ~820 MB",
+    "onboarding_models_info": "Speech recognition (~216 MB) and voice synthesis (~600 MB).\nModels run entirely on your device.",
+    "onboarding_start_button": "Download & get started",
+    "onboarding_setup_title": "Setting up your models",
+    "onboarding_setup_hint": "This takes a few minutes on first launch.\nModels are cached — future launches are fast.",
+    "onboarding_name_title": "What's your name?",
+    "onboarding_name_hint": "Used only for the closing sentence at session end.",
+    "onboarding_name_placeholder": "First name",
+    "onboarding_continue_button": "Continue",
+    "onboarding_ready_prefix": "Ready, ",
+    "onboarding_ready_suffix": ".",
+    "onboarding_change_name_hint": "You can always change your name in Settings.",
+    "error_models_unavailable": "Audio models are still unavailable. Please try again."
+  }
+}

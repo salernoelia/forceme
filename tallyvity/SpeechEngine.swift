@@ -25,7 +25,7 @@ final class SpeechEngine {
 
     var loadingMessage: String {
         switch state {
-        case .requestingPermission: return "Requesting microphone…"
+        case .requestingPermission: return PromptStore.shared.string(for: "requesting_mic")
         case .loadingModels(let msg): return msg
         default: return ""
         }
@@ -110,12 +110,12 @@ final class SpeechEngine {
     }
 
     private func loadModels(model: SettingsStore.WhisperModel, voice: SettingsStore.Voice) async {
-        state = .loadingModels("Loading speech recognition…")
+        state = .loadingModels(PromptStore.shared.string(for: "loading_recognition"))
         try? configureAudioSession()
         downloadProgress = nil
         do {
             whisper = try await makeWhisper(model: model)
-            state = .loadingModels("Loading voice synthesis…")
+            state = .loadingModels(PromptStore.shared.string(for: "loading_synthesis"))
             tts = try await makeTTS(voice: voice)
             downloadProgress = nil
             state = .idle
@@ -222,10 +222,18 @@ final class SpeechEngine {
 
     @discardableResult
     func playCue(named name: String) -> Bool {
-        let candidates: [URL?] = [
-            Bundle.main.url(forResource: name, withExtension: "wav", subdirectory: "sfx"),
-            Bundle.main.url(forResource: name, withExtension: "wav")
-        ]
+        let voiceDir = currentVoice.rawValue.lowercased()
+        let extensions = ["m4a", "wav"]
+        var candidates: [URL?] = []
+
+        for ext in extensions {
+            candidates += [
+                Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "sfx"),
+                Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Audio/\(voiceDir)"),
+                Bundle.main.url(forResource: name, withExtension: ext, subdirectory: voiceDir),
+                Bundle.main.url(forResource: name, withExtension: ext)
+            ]
+        }
 
         guard let url = candidates.compactMap({ $0 }).first else { return false }
         do {

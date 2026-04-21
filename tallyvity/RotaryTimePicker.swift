@@ -5,8 +5,17 @@ struct RotaryTimePicker: View {
     let values: [Int]
     let label: String
 
+    let unit: String
+
     @State private var dragOffset: CGFloat = 0
     private let itemHeight: CGFloat = 50
+
+    init(value: Binding<Int>, values: [Int], label: String, unit: String = "min") {
+        self._value = value
+        self.values = values
+        self.label = label
+        self.unit = unit
+    }
 
     private var selectedIndex: Int {
         values.firstIndex(of: value) ?? 0
@@ -67,7 +76,7 @@ struct RotaryTimePicker: View {
                     }
             )
 
-            Text("min")
+            Text(unit)
                 .font(.system(size: 12, weight: .light))
                 .foregroundStyle(.tertiary)
         }
