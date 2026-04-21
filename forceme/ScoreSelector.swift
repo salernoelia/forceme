@@ -6,6 +6,7 @@ struct ScoreSelector: View {
     @State private var selected: Int? = nil
     @State private var scales: [CGFloat] = Array(repeating: 1.0, count: 5)
     @State private var submitted = false
+    @State private var animationTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 36) {
@@ -38,28 +39,42 @@ struct ScoreSelector: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selected)
+        .onDisappear {
+            animationTask?.cancel()
+            animationTask = nil
+        }
     }
 
     private func tap(_ i: Int) {
+        animationTask?.cancel()
         selected = i
-        for j in 0..<i {
-            let delay = Double(j) * 0.06
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.38)) {
-                    scales[j] = 1.45
+        animationTask = Task { @MainActor in
+            for j in 0..<i {
+                if Task.isCancelled { return }
+                if j > 0 {
+                    try? await Task.sleep(for: .seconds(0.06))
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                    withAnimation(.spring(response: 0.36, dampingFraction: 0.55)) {
-                        scales[j] = 1.0
-                    }
+                if Task.isCancelled { return }
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.38)) {
+                    setScale(1.45, at: j)
+                }
+                try? await Task.sleep(for: .seconds(0.18))
+                if Task.isCancelled { return }
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.55)) {
+                    setScale(1.0, at: j)
                 }
             }
-        }
-        let submitDelay = Double(i) * 0.06 + 0.45
-        DispatchQueue.main.asyncAfter(deadline: .now() + submitDelay) {
+
+            try? await Task.sleep(for: .seconds(0.21))
+            if Task.isCancelled { return }
             submitted = true
             onSelect(i)
         }
+    }
+
+    private func setScale(_ value: CGFloat, at index: Int) {
+        guard scales.indices.contains(index) else { return }
+        scales[index] = value
     }
 
     private func label(_ score: Int) -> String {

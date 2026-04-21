@@ -13,6 +13,7 @@ struct SessionReportView: View {
                 VStack(alignment: .leading, spacing: 32) {
                     header
                     scores
+                    if let level = artifact.motivationLevel { motivationRow(level) }
                     if !artifact.blocker.isEmpty { blockerRow }
                     if !artifact.intentNext.isEmpty { nextRow }
                     if !artifact.closingSentence.isEmpty { closing }
@@ -68,6 +69,11 @@ struct SessionReportView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func motivationRow(_ level: Int) -> some View {
+        factRow(label: "Starting motivation", value: "\(level)/5")
     }
 
     @ViewBuilder
@@ -132,6 +138,7 @@ struct SessionReportView: View {
     ]
     let artifact = SessionArtifact(
         id: "1", date: Date(), goal: "Write quarterly report",
+        motivationLevel: 4,
         score: 3.5, blocker: "kept rewriting same paragraph",
         intentNext: "set word count target first",
         loopsCompleted: 2,

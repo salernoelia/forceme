@@ -9,6 +9,8 @@ final class SessionEngine {
 
     enum Phase: Equatable {
         case idle
+        case motivationSelection
+        case preparingAudio
         case goalCapture
         case photoBaseline
         case backgroundPrep(loopNumber: Int)
@@ -25,7 +27,7 @@ final class SessionEngine {
 
         static func == (lhs: Phase, rhs: Phase) -> Bool {
             switch (lhs, rhs) {
-            case (.idle, .idle), (.goalCapture, .goalCapture), (.photoBaseline, .photoBaseline),
+              case (.idle, .idle), (.motivationSelection, .motivationSelection), (.preparingAudio, .preparingAudio), (.goalCapture, .goalCapture), (.photoBaseline, .photoBaseline),
                  (.roundEnd, .roundEnd), (.photoDelta, .photoDelta),
                  (.storing, .storing), (.sessionReport, .sessionReport): return true
             case (.backgroundPrep(let a), .backgroundPrep(let b)): return a == b
@@ -78,6 +80,10 @@ final class SessionEngine {
     private var currentLoopNumber: Int = 0
     private var haptic = UIImpactFeedbackGenerator(style: .light)
     private var scoreContinuation: CheckedContinuation<Int, Never>?
+    private var motivationContinuation: CheckedContinuation<Int, Never>?
+    private var pendingScore: Int?
+    private var pendingMotivation: Int?
+    private var sessionMotivationLevel: Int?
 
     init(speech: SpeechEngine, gemma: GemmaEngine) {
         self.speech = speech
@@ -129,8 +135,21 @@ final class SessionEngine {
     }
 
     func submitScore(_ score: Int) {
-        scoreContinuation?.resume(returning: score)
-        scoreContinuation = nil
+        if let continuation = scoreContinuation {
+            scoreContinuation = nil
+            continuation.resume(returning: score)
+        } else {
+            pendingScore = score
+        }
+    }
+
+    func submitMotivation(_ level: Int) {
+        if let continuation = motivationContinuation {
+            motivationContinuation = nil
+            continuation.resume(returning: level)
+        } else {
+            pendingMotivation = level
+        }
     }
 
     func cancelError() {
@@ -170,6 +189,18 @@ final class SessionEngine {
     private func runSession(userName: String) async {
         guard !Task.isCancelled else { return }
 
+        withAnimation { phase = .motivationSelection }
+        let motivation = await waitForMotivation()
+        guard !Task.isCancelled else { return }
+        sessionMotivationLevel = motivation
+
+        withAnimation { phase = .preparingAudio }
+        let speechReady = await speech.ensureReady()
+        guard speechReady else {
+            withAnimation { phase = .error("Audio models are still unavailable. Please try again.") }
+            return
+        }
+
         completedLoops = []
         currentGoal = ""
         currentLoopNumber = 1
@@ -177,6 +208,7 @@ final class SessionEngine {
         photoSkipped = false
         memoryRecallText = nil
         finalArtifact = nil
+        sessionMotivationLevel = motivation
         prerenderedQuestions = [
             "Tell me what you actually finished.",
             "Name the main thing that got in the way.",
@@ -235,7 +267,7 @@ final class SessionEngine {
 
         await say("Let's go. 25 minutes.")
         UIApplication.shared.isIdleTimerDisabled = true
-        withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
+        phase = .workActive(loopNumber: currentLoopNumber)
         await runTimer(duration: workDuration)
         guard !Task.isCancelled else { UIApplication.shared.isIdleTimerDisabled = false; return }
 
@@ -343,6 +375,7 @@ final class SessionEngine {
             id: UUID().uuidString,
             date: Date(),
             goal: currentGoal,
+            motivationLevel: sessionMotivationLevel,
             score: Double(completedLoops.map(\.score).reduce(0, +)) / Double(max(completedLoops.count, 1)),
             blocker: blocker,
             intentNext: intentNext,
@@ -376,7 +409,8 @@ final class SessionEngine {
             guard !Task.isCancelled else { return }  // cancel → do NOT set progress = 1
             guard !timerSkipped else { break }       // skip  → fall through to set progress = 1
 
-            let elapsed = Double(clock.now - start, as: .seconds)
+            let d = clock.now - start
+            let elapsed = Double(d.components.seconds) + Double(d.components.attoseconds) * 1e-18
             timerElapsed = min(elapsed, duration)
             timerProgress = min(elapsed / duration, 1.0)
 
@@ -442,8 +476,22 @@ final class SessionEngine {
     // MARK: - Helpers
 
     private func waitForScore() async -> Int {
+        if let pendingScore {
+            self.pendingScore = nil
+            return pendingScore
+        }
         await withCheckedContinuation { cont in
             scoreContinuation = cont
+        }
+    }
+
+    private func waitForMotivation() async -> Int {
+        if let pendingMotivation {
+            self.pendingMotivation = nil
+            return pendingMotivation
+        }
+        await withCheckedContinuation { cont in
+            motivationContinuation = cont
         }
     }
 }

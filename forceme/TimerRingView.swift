@@ -23,13 +23,11 @@ struct TimerRingView: View {
                 Circle()
                     .stroke(Color.primary.opacity(0.06), lineWidth: lineWidth)
 
-                Circle()
-                    .trim(from: 0, to: remaining)
+                TimerArc(remaining: remaining)
                     .stroke(
                         arcColor.opacity(pulsing ? 0.78 : 1.0),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
-                    .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 0.25), value: remaining)
                     .animation(
                         .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
@@ -44,6 +42,29 @@ struct TimerRingView: View {
                 pulsing = true
             }
         }
+    }
+}
+
+private struct TimerArc: Shape {
+    var remaining: Double
+
+    var animatableData: Double {
+        get { remaining }
+        set { remaining = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let r = max(0, min(1, remaining))
+        guard r > 0 else { return Path() }
+        var path = Path()
+        path.addArc(
+            center: CGPoint(x: rect.midX, y: rect.midY),
+            radius: min(rect.width, rect.height) / 2,
+            startAngle: .degrees(-90),
+            endAngle: .degrees(-90 + r * 360),
+            clockwise: false
+        )
+        return path
     }
 }
 

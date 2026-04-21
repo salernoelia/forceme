@@ -33,14 +33,19 @@ final class SpeechEngine {
 
     private var whisper: WhisperKit?
     private var tts: TTSKit?
+    private var loadTask: Task<Void, Never>?
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
 
     private var currentModel: SettingsStore.WhisperModel = .small
-    private var currentVoice: SettingsStore.Voice = .ryan
+    private var currentVoice: SettingsStore.Voice = .aiden
 
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
+
+    var isReady: Bool {
+        whisper != nil && tts != nil
+    }
 
     func requestPermissionAndLoad(settings: SettingsStore) async {
         let granted = await AVAudioApplication.requestRecordPermission()
@@ -51,7 +56,7 @@ final class SpeechEngine {
         currentModel = settings.whisperModel
         currentVoice = settings.voice
         observeAudioSession()
-        await loadModels(model: currentModel, voice: currentVoice)
+        startPreloading(model: currentModel, voice: currentVoice)
     }
 
     func applySettings(model: SettingsStore.WhisperModel, voice: SettingsStore.Voice, settings: SettingsStore) async {
@@ -63,7 +68,30 @@ final class SpeechEngine {
         settings.whisperModel = model
         currentModel = model
         whisper = nil
+        tts = nil
         await loadModels(model: model, voice: voice)
+    }
+
+    func ensureReady() async -> Bool {
+        if isReady { return true }
+        if case .permissionDenied = state { return false }
+
+        if loadTask == nil {
+            startPreloading(model: currentModel, voice: currentVoice)
+        }
+
+        await loadTask?.value
+        return isReady
+    }
+
+    private func startPreloading(model: SettingsStore.WhisperModel, voice: SettingsStore.Voice) {
+        if isReady { return }
+        if loadTask != nil { return }
+        loadTask = Task { [weak self] in
+            guard let self else { return }
+            await self.loadModels(model: model, voice: voice)
+            self.loadTask = nil
+        }
     }
 
     private func configureAudioSession() throws {
@@ -73,13 +101,13 @@ final class SpeechEngine {
     }
 
     private func loadModels(model: SettingsStore.WhisperModel, voice: SettingsStore.Voice) async {
-        state = .loadingModels("Loading models…")
+        state = .loadingModels("Loading speech recognition…")
         try? configureAudioSession()
         downloadProgress = nil
         do {
-            async let w = makeWhisper(model: model)
-            async let t = makeTTS(voice: voice)
-            (whisper, tts) = try await (w, t)
+            whisper = try await makeWhisper(model: model)
+            state = .loadingModels("Loading voice synthesis…")
+            tts = try await makeTTS(voice: voice)
             downloadProgress = nil
             state = .idle
         } catch {

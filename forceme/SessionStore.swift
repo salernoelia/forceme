@@ -11,6 +11,7 @@ struct SessionArtifact: Codable, Identifiable {
     var id: String
     var date: Date
     var goal: String
+    var motivationLevel: Int?
     var score: Double
     var blocker: String
     var intentNext: String

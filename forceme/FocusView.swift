@@ -26,7 +26,6 @@ struct FocusView: View {
             }
             .ignoresSafeArea()
         }
-        .animation(.easeInOut(duration: 0.35), value: session.phase)
     }
 
     // MARK: - Phase routing
@@ -36,6 +35,12 @@ struct FocusView: View {
         switch session.phase {
         case .idle:
             idleView
+
+        case .motivationSelection:
+            motivationView
+
+        case .preparingAudio:
+            preparingAudioView
 
         case .goalCapture:
             captureView(
@@ -193,6 +198,16 @@ struct FocusView: View {
     }
 
     // MARK: - Self score
+
+    private var motivationView: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            MotivationSelector { level in
+                session.submitMotivation(level)
+            }
+            Spacer()
+        }
+    }
 
     private var selfScoreView: some View {
         VStack(spacing: 40) {
@@ -480,6 +495,16 @@ struct FocusView: View {
     }
 
     // MARK: - Transition overlay
+
+    private var preparingAudioView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Preparing voice models…")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private func transitionView(text: String) -> some View {
         Text(text)
