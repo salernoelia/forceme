@@ -18,7 +18,7 @@
                BlueprintIdentifier = "0E32E5C72F96E1210035B67D"
                BuildableName = "tallyvity.app"
                BlueprintName = "tallyvity"
-               ReferencedContainer = "container:forceme.xcodeproj">
+               ReferencedContainer = "container:tallyvity.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -48,7 +48,7 @@
             BlueprintIdentifier = "0E32E5C72F96E1210035B67D"
             BuildableName = "tallyvity.app"
             BlueprintName = "tallyvity"
-            ReferencedContainer = "container:forceme.xcodeproj">
+            ReferencedContainer = "container:tallyvity.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -65,7 +65,7 @@
             BlueprintIdentifier = "0E32E5C72F96E1210035B67D"
             BuildableName = "tallyvity.app"
             BlueprintName = "tallyvity"
-            ReferencedContainer = "container:forceme.xcodeproj">
+            ReferencedContainer = "container:tallyvity.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

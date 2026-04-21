@@ -1,7 +1,7 @@
-# Tallivity / FocusProof — Clinical Review & Implementation Roadmap
+# Tallivity / tallivity — Clinical Review & Implementation Roadmap
 
 **Reviewed by:** Cognitive-Behavioral Psychology, UX, Pedagogy
-**Scope:** Existing codebase (`forceme`), psychology assessment, FocusProof specification
+**Scope:** Existing codebase (`tallyvity`), psychology assessment, tallivity specification
 **Standard:** Scientifically grounded, motivationally optimal Pomodoro intervention
 
 ---
@@ -46,7 +46,7 @@ The current implementation has no mechanism for a user in deep flow to signal co
 
 The `listen()` function runs for a full `maxDuration` with no silence detection. This means the system records ambient noise indefinitely if the user doesn't tap "Done," and the transcript quality degrades. Whisper performance on long silences is poor.
 
-**Fix:** Integrate Silero VAD (CoreML conversion) as a pre-processing gate. The FocusProof spec correctly identifies this. It is not optional — it directly affects transcription quality for every user response.
+**Fix:** Integrate Silero VAD (CoreML conversion) as a pre-processing gate. The tallivity spec correctly identifies this. It is not optional — it directly affects transcription quality for every user response.
 
 ### 5. Gemma Inference Blocking Main Thread Risk
 
@@ -62,7 +62,7 @@ The `listen()` function runs for a full `maxDuration` with no silence detection.
 
 `SessionEngine` holds all state in memory. A crash at loop 3 destroys everything. For a 100-minute session, this is a critical reliability failure.
 
-**Fix:** Persist phase state to disk on every transition. The FocusProof spec calls this out correctly. Use a simple JSON file — not SQLite for this purpose, as the state is a single object.
+**Fix:** Persist phase state to disk on every transition. The tallivity spec calls this out correctly. Use a simple JSON file — not SQLite for this purpose, as the state is a single object.
 
 ### 7. The Own-Name Effect Is Being Squandered
 
@@ -78,7 +78,7 @@ Photos are captured and stored, but Gemma does not currently compare baseline to
 
 ### 9. Screen Staying Awake Is Not Legally Guaranteed
 
-`UIApplication.shared.isIdleTimerDisabled = true` is the current approach. This is correct but insufficient — it doesn't survive audio session interruptions or background transitions. The FocusProof spec correctly identifies CADisplayLink as the robust mechanism.
+`UIApplication.shared.isIdleTimerDisabled = true` is the current approach. This is correct but insufficient — it doesn't survive audio session interruptions or background transitions. The tallivity spec correctly identifies CADisplayLink as the robust mechanism.
 
 **Fix:** Implement CADisplayLink in `TimerRingView` for the animation tick, which legally prevents sleep via active rendering. Keep `isIdleTimerDisabled` as a secondary guard. This is a correctness issue, not a polish issue.
 
@@ -87,6 +87,8 @@ Photos are captured and stored, but Gemma does not currently compare baseline to
 `SessionStore.findRelevant()` currently uses word overlap (bag-of-words intersection). This will fail for semantically similar but lexically different goals: "finish quarterly report" and "complete Q3 writeup" return zero overlap. The memory recall feature is architecturally present but effectively non-functional for real usage.
 
 **Fix:** Implement MiniLM-L6 via CoreML conversion for session embedding. Cosine similarity on embeddings. This is ~25MB model weight, justified by the psychological value of accurate memory retrieval.
+
+the score screen should not be blocked by the voice line! currently user has to wait until the voice line has happened
 
 ---
 
@@ -100,7 +102,7 @@ The break timer is a countdown with "Rest" text. Attention Restoration Theory (K
 
 ### 12. Missing: Pre-Recorded Human Voice for Fixed Prompts
 
-The FocusProof spec correctly distinguishes fixed prompts (which should be human-recorded) from dynamic content (TTS). All fixed prompts in the current implementation go through TTS, which introduces latency and prosodic inconsistency. "Let's go. 25 minutes." should play in under 100ms, with natural human rhythm.
+The tallivity spec correctly distinguishes fixed prompts (which should be human-recorded) from dynamic content (TTS). All fixed prompts in the current implementation go through TTS, which introduces latency and prosodic inconsistency. "Let's go. 25 minutes." should play in under 100ms, with natural human rhythm.
 
 **Fix:** Record 7 fixed voice lines once. Store as compressed audio assets. TTS handles only: memory recall, questions, closing sentence. Pre-recorded handles: everything else.
 
@@ -112,7 +114,7 @@ The FocusProof spec correctly distinguishes fixed prompts (which should be human
 
 ### 14. No Notification Architecture
 
-The app has no re-engagement mechanism. The FocusProof spec outlines a scientifically grounded three-notification system. The key discipline is in what to exclude: no streaks, no badges, no daily nagging. Only three types — time-anchored work cue, fresh-start cue (Monday/month start), and a single lapse-recovery nudge after exactly 2 missed days, then silence.
+The app has no re-engagement mechanism. The tallivity spec outlines a scientifically grounded three-notification system. The key discipline is in what to exclude: no streaks, no badges, no daily nagging. Only three types — time-anchored work cue, fresh-start cue (Monday/month start), and a single lapse-recovery nudge after exactly 2 missed days, then silence.
 
 This matters because the Fresh Start Effect (Dai et al., 2014) and Implementation Intentions (Gollwitzer, 1999) are among the most actionable findings in behavioral science for habit formation.
 
@@ -120,7 +122,6 @@ This matters because the Fresh Start Effect (Dai et al., 2014) and Implementatio
 
 ## What Should Be Rethought or Removed
 
-### Remove: The `forceme` Internal Framing
 
 This is not about naming convention. Self-Determination Theory (Deci & Ryan, 1985) is explicit: systems that frame themselves as coercive — even internally — leak this orientation into design decisions. The "Skip →" button label, the rigid loop enforcement, the mandatory question sequence — these all reflect a coercive design philosophy that is at odds with the autonomy component of SDT. Rename the package. More importantly, audit every forced interaction and ask whether it serves the user or the system's idea of what the user should do.
 
@@ -148,11 +149,11 @@ Currently, both baseline and delta photo prompts are visible UI states that the 
 
 ## Not Needed — Do Not Build
 
-**Streaks.** Not supported by SDT. Creates anxiety-driven compliance, not motivation. Explicitly excluded in FocusProof spec. Correct.
+**Streaks.** Not supported by SDT. Creates anxiety-driven compliance, not motivation. Explicitly excluded in tallivity spec. Correct.
 
 **Badges or points.** Extrinsic reward undermines intrinsic motivation for cognitively complex tasks (Deci et al., 1999). Correct to exclude.
 
-**Daily notification reminders.** Notification fatigue is documented (Oulasvirta et al., 2012). More than one notification type per day, or notifications on consecutive days without behavioral change, produce negative engagement outcomes. The three-notification model in FocusProof is the ceiling, not a starting point.
+**Daily notification reminders.** Notification fatigue is documented (Oulasvirta et al., 2012). More than one notification type per day, or notifications on consecutive days without behavioral change, produce negative engagement outcomes. The three-notification model in tallivity is the ceiling, not a starting point.
 
 **Real-time Gemma analysis during work phase.** Thermally irresponsible and psychologically unnecessary. Gemma infers once per phase boundary. Continuous inference serves no user need and introduces reliability risk.
 
@@ -165,7 +166,7 @@ Currently, both baseline and delta photo prompts are visible UI states that the 
 | **Critical** | Ego depletion at round end · Adaptive motivation response · Flow extension command · VAD implementation · Main thread risk |
 | **High** | Crash recovery · Own-name ceiling · Photo feedback loop · Screen-awake reliability · Semantic session retrieval |
 | **Medium** | Break UX restoration · Pre-recorded human voice · Configurable loop count · Notification architecture |
-| **Remove** | `forceme` coercive framing · AI filler voice lines · LLMDemoView in production · Foregrounded photo prompts · Quality-framing score prompts |
+
 | **Do not build** | Streaks · Badges · Daily reminders · Continuous inference |
 
 ---

@@ -7,6 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0E010A072F97827C0084F23A /* yc_256ms_comparison_20250915_205721_2c04b81.png in Resources */ = {isa = PBXBuildFile; fileRef = 0E0109FB2F97827C0084F23A /* yc_256ms_comparison_20250915_205721_2c04b81.png */; };
+		0E010A082F97827C0084F23A /* yc_standard_comparison_20250915_205721_2c04b81.png in Resources */ = {isa = PBXBuildFile; fileRef = 0E0109FD2F97827C0084F23A /* yc_standard_comparison_20250915_205721_2c04b81.png */; };
+		0E010A092F97827C0084F23A /* modules.json in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A012F97827C0084F23A /* modules.json */; };
+		0E010A0A2F97827C0084F23A /* config.json in Resources */ = {isa = PBXBuildFile; fileRef = 0E0109FF2F97827C0084F23A /* config.json */; };
+		0E010A0B2F97827C0084F23A /* yc_performance_20250915_205721_2c04b81.png in Resources */ = {isa = PBXBuildFile; fileRef = 0E0109FC2F97827C0084F23A /* yc_performance_20250915_205721_2c04b81.png */; };
+		0E010A0C2F97827C0084F23A /* vocab.txt in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A052F97827C0084F23A /* vocab.txt */; };
+		0E010A0D2F97827C0084F23A /* tokenizer_config.json in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A042F97827C0084F23A /* tokenizer_config.json */; };
+		0E010A0E2F97827C0084F23A /* tokenizer.json in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A032F97827C0084F23A /* tokenizer.json */; };
+		0E010A0F2F97827C0084F23A /* model.safetensors in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A002F97827C0084F23A /* model.safetensors */; };
+		0E010A102F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A022F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc */; };
 		0E64F01A2F9707840059DD25 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F0192F9707840059DD25 /* MLX */; };
 		0E64F01C2F9707840059DD25 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F01B2F9707840059DD25 /* MLXFast */; };
 		0E64F01E2F9707840059DD25 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F01D2F9707840059DD25 /* MLXNN */; };
@@ -25,14 +35,24 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0E0109FB2F97827C0084F23A /* yc_256ms_comparison_20250915_205721_2c04b81.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = yc_256ms_comparison_20250915_205721_2c04b81.png; sourceTree = "<group>"; };
+		0E0109FC2F97827C0084F23A /* yc_performance_20250915_205721_2c04b81.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = yc_performance_20250915_205721_2c04b81.png; sourceTree = "<group>"; };
+		0E0109FD2F97827C0084F23A /* yc_standard_comparison_20250915_205721_2c04b81.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = yc_standard_comparison_20250915_205721_2c04b81.png; sourceTree = "<group>"; };
+		0E0109FF2F97827C0084F23A /* config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = config.json; sourceTree = "<group>"; };
+		0E010A002F97827C0084F23A /* model.safetensors */ = {isa = PBXFileReference; lastKnownFileType = text; path = model.safetensors; sourceTree = "<group>"; };
+		0E010A012F97827C0084F23A /* modules.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = modules.json; sourceTree = "<group>"; };
+		0E010A022F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = "silero-vad-unified-256ms-v6.0.0.mlmodelc"; sourceTree = "<group>"; };
+		0E010A032F97827C0084F23A /* tokenizer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tokenizer.json; sourceTree = "<group>"; };
+		0E010A042F97827C0084F23A /* tokenizer_config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tokenizer_config.json; sourceTree = "<group>"; };
+		0E010A052F97827C0084F23A /* vocab.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = vocab.txt; sourceTree = "<group>"; };
 		0E32E5C82F96E1210035B67D /* tallyvity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tallyvity.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EA4389A2F96E1D30087FD93 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0E32E5CA2F96E1210035B67D /* forceme */ = {
+		0E32E5CA2F96E1210035B67D /* tallyvity */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = forceme;
+			path = tallyvity;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +83,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		0E0109FE2F97827C0084F23A /* graphs */ = {
+			isa = PBXGroup;
+			children = (
+				0E0109FB2F97827C0084F23A /* yc_256ms_comparison_20250915_205721_2c04b81.png */,
+				0E0109FC2F97827C0084F23A /* yc_performance_20250915_205721_2c04b81.png */,
+				0E0109FD2F97827C0084F23A /* yc_standard_comparison_20250915_205721_2c04b81.png */,
+			);
+			path = graphs;
+			sourceTree = "<group>";
+		};
+		0E010A062F97827C0084F23A /* models */ = {
+			isa = PBXGroup;
+			children = (
+				0E0109FE2F97827C0084F23A /* graphs */,
+				0E0109FF2F97827C0084F23A /* config.json */,
+				0E010A002F97827C0084F23A /* model.safetensors */,
+				0E010A012F97827C0084F23A /* modules.json */,
+				0E010A022F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc */,
+				0E010A032F97827C0084F23A /* tokenizer.json */,
+				0E010A042F97827C0084F23A /* tokenizer_config.json */,
+				0E010A052F97827C0084F23A /* vocab.txt */,
+			);
+			path = models;
+			sourceTree = "<group>";
+		};
 		0E1291DA2F96E9FA0065D9E8 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -73,10 +118,11 @@
 		0E32E5BF2F96E1210035B67D = {
 			isa = PBXGroup;
 			children = (
-				0E32E5CA2F96E1210035B67D /* forceme */,
+				0E32E5CA2F96E1210035B67D /* tallyvity */,
 				0E32E5C92F96E1210035B67D /* Products */,
 				0EA4389A2F96E1D30087FD93 /* Info.plist */,
 				0E1291DA2F96E9FA0065D9E8 /* Frameworks */,
+				0E010A062F97827C0084F23A /* models */,
 			);
 			sourceTree = "<group>";
 		};
@@ -105,7 +151,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				0E32E5CA2F96E1210035B67D /* forceme */,
+				0E32E5CA2F96E1210035B67D /* tallyvity */,
 			);
 			name = tallyvity;
 			packageProductDependencies = (
@@ -144,7 +190,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 0E32E5C32F96E1210035B67D /* Build configuration list for PBXProject "forceme" */;
+			buildConfigurationList = 0E32E5C32F96E1210035B67D /* Build configuration list for PBXProject "tallyvity" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -175,6 +221,16 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0E010A072F97827C0084F23A /* yc_256ms_comparison_20250915_205721_2c04b81.png in Resources */,
+				0E010A082F97827C0084F23A /* yc_standard_comparison_20250915_205721_2c04b81.png in Resources */,
+				0E010A092F97827C0084F23A /* modules.json in Resources */,
+				0E010A0A2F97827C0084F23A /* config.json in Resources */,
+				0E010A0B2F97827C0084F23A /* yc_performance_20250915_205721_2c04b81.png in Resources */,
+				0E010A0C2F97827C0084F23A /* vocab.txt in Resources */,
+				0E010A0D2F97827C0084F23A /* tokenizer_config.json in Resources */,
+				0E010A0E2F97827C0084F23A /* tokenizer.json in Resources */,
+				0E010A0F2F97827C0084F23A /* model.safetensors in Resources */,
+				0E010A102F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -340,7 +396,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = forceme/forceme.entitlements;
+				CODE_SIGN_ENTITLEMENTS = tallyvity/tallyvity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9LKY7MBW4C;
@@ -383,7 +439,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = forceme/forceme.entitlements;
+				CODE_SIGN_ENTITLEMENTS = tallyvity/tallyvity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 9LKY7MBW4C;
@@ -424,7 +480,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0E32E5C32F96E1210035B67D /* Build configuration list for PBXProject "forceme" */ = {
+		0E32E5C32F96E1210035B67D /* Build configuration list for PBXProject "tallyvity" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0E32E5D32F96E1220035B67D /* Debug */,
