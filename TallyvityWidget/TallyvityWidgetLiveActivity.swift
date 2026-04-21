@@ -41,39 +41,60 @@ struct TallyvityWidgetLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("GOAL")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary)
                         Text(context.attributes.goal)
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                    } icon: {
-                        Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
-                            .foregroundStyle(.white.opacity(0.6))
-                            .font(.caption)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
                     }
-                    .padding(.leading, 4)
+                    .padding(.leading, 12)
+                    .padding(.top, 4)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.endDate, style: .timer)
-                        .font(.callout.weight(.medium).monospacedDigit())
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.trailing)
-                        .padding(.trailing, 4)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(context.state.isWork ? "FOCUS" : "BREAK")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
+                                .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                            Text(context.state.endDate, style: .timer)
+                                .font(.title3.weight(.bold).monospacedDigit())
+                        }
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.top, 4)
+                }
+
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack {
+                        Spacer()
+                        Text("Loop \(context.state.loopNumber) of \(context.attributes.totalLoops)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
                 }
 
             } compactLeading: {
                 Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
+                    .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                    .font(.caption2.weight(.bold))
             } compactTrailing: {
                 Text(context.state.endDate, style: .timer)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.primary)
-                    .frame(minWidth: 40)
+                    .font(.caption2.weight(.bold).monospacedDigit())
+                    .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                    .frame(minWidth: 32)
             } minimal: {
-                Image(systemName: context.state.isWork ? "timer" : "cup.and.saucer")
-                    .foregroundStyle(.secondary)
+                Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
+                    .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                    .font(.caption2.weight(.bold))
             }
         }
     }
