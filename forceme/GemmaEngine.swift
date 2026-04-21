@@ -29,6 +29,12 @@ final class GemmaEngine {
         container != nil && (state == .ready || state == .generating)
     }
 
+    private static let downloadedKey = "gemmaModelDownloaded"
+
+    var wasDownloaded: Bool {
+        UserDefaults.standard.bool(forKey: Self.downloadedKey)
+    }
+
     func load() async {
         guard !isLoaded else { return }
         state = .loading
@@ -48,6 +54,7 @@ final class GemmaEngine {
                 }
             )
             container = loaded
+            UserDefaults.standard.set(true, forKey: Self.downloadedKey)
             state = .ready
         } catch {
             state = .error(error.localizedDescription)
@@ -60,10 +67,19 @@ final class GemmaEngine {
         output = ""
         do {
             var images: [UserInput.Image] = []
-            if let uiImage = image, let ciImage = CIImage(image: uiImage) {
-                images = [.ciImage(ciImage)]
+            let content: Any
+            if let uiImage = image {
+                let normalized = uiImage.normalizedForVLM()
+                let ci = normalized.cgImage.map { CIImage(cgImage: $0) } ?? CIImage(image: normalized)
+                if let ci { images = [.ciImage(ci)] }
+                content = [["type": "image"], ["type": "text", "text": prompt]] as [[String: String]]
+            } else {
+                content = prompt
             }
-            let userInput = UserInput(prompt: prompt, images: images)
+            let userInput = UserInput(
+                prompt: .messages([["role": "user", "content": content]]),
+                images: images
+            )
             let lmInput = try await container.prepare(input: userInput)
             let stream = try await container.generate(
                 input: lmInput,
@@ -145,6 +161,17 @@ private struct HFTokenizerBridge: MLXLMCommon.Tokenizer {
         } catch Tokenizers.TokenizerError.missingChatTemplate {
             throw MLXLMCommon.TokenizerError.missingChatTemplate
         }
+    }
+}
+
+extension UIImage {
+    func normalizedForVLM() -> UIImage {
+        guard imageOrientation != .up else { return self }
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        draw(in: CGRect(origin: .zero, size: size))
+        let out = UIGraphicsGetImageFromCurrentImageContext() ?? self
+        UIGraphicsEndImageContext()
+        return out
     }
 }
 

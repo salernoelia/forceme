@@ -24,6 +24,7 @@ struct RootView: View {
                 .tag(AppTab.settings)
         }
         .task { await engine.requestPermissionAndLoad(settings: settings) }
+        .task { if gemma.wasDownloaded { await gemma.load() } }
     }
 }
 
