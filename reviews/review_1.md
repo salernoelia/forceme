@@ -1,115 +1,173 @@
-As a professor of cognitive and behavioral psychology, I find this project—internally titled *forceme* and outwardly named *Tallivity*—to be a fascinating application of metacognitive scaffolding and behavioral conditioning. 
+# Tallivity / FocusProof — Clinical Review & Implementation Roadmap
 
-You are utilizing local, voice-first AI to create a structured environment for deep work. By analyzing the system architecture, prompts, and user flows, I can assess its psychological validity. Here is my neutral, clinical assessment of what works, what introduces psychological friction, and where the opportunities for optimization lie.
-
----
-
-### Part 1: What Works (Psychological Strengths)
-
-**1. The "Production Effect" and Vocal Commitment**
-By requiring the user to speak their goal out loud (`goalCapture: "Say your goal"`), you are leveraging the *Production Effect*. Information that is produced vocally is encoded more deeply in memory than information read or typed. It also serves as a stronger psychological contract. It transitions the user from passive intent to active commitment.
-
-**2. Metacognitive Interventions (The Loop Q&A)**
-The decision to ask three specific questions at the end of a round ("What did you finish?", "What got in the way?", "What to change next time?") is an excellent exercise in *metacognition* (thinking about one's own thinking). It forces the user off "autopilot." Over time, identifying the "main friction" helps users develop superior executive functioning and self-regulation.
-
-**3. State-Dependent Tracking (Motivation Selector)**
-Asking the user to rate their motivation *before* the session (from 1: "low" to 5: "all in") is a brilliant application of emotional labeling. Acknowledging a low-motivation state reduces the cognitive dissonance of starting a difficult task. 
-
-**4. The Hawthorne Effect via "Photo Baseline & Delta"**
-The optional feature to take a photo of the workspace before and after the session mimics the *Hawthorne Effect*—the phenomenon where individuals modify an aspect of their behavior in response to their awareness of being observed. Even though the "observer" is a local AI, taking a photo creates a tangible sense of accountability.
-
-**5. High Autonomy and Privacy**
-Operating entirely locally (using MLX, WhisperKit, and local TTS) ensures absolute privacy. Psychologically, this creates a "safe space" for the user to admit failures (e.g., "I got distracted by social media") without fear of surveillance or data harvesting, encouraging highly accurate self-reporting.
+**Reviewed by:** Cognitive-Behavioral Psychology, UX, Pedagogy
+**Scope:** Existing codebase (`forceme`), psychology assessment, FocusProof specification
+**Standard:** Scientifically grounded, motivationally optimal Pomodoro intervention
 
 ---
 
-### Part 2: What Does Not Work (Psychological Risks & Frictions)
+## What Is Scientifically Sound — Keep Without Changes
 
-**1. Cognitive Overload at Points of Ego Depletion**
-The end of a 25-minute Pomodoro is typically a state of mild *ego depletion* (diminished willpower/cognitive fatigue). At this exact moment, you require the user to: 
-1. Take a photo.
-2. Answer three reflective questions vocally.
-3. Score their round.
-This is highly cognitively demanding. Instead of the end of a round feeling like a reward, it feels like an interrogation. This high friction may lead to app abandonment because the behavioral loop ends with work, rather than relief.
+**Vocal goal declaration.** The Production Effect (MacLeod et al., 2010) is well-replicated. Speaking a goal encodes it more deeply than typing and constitutes a behavioral contract. `goalCapture` is correctly implemented.
 
-**2. The Absence of Positive Reinforcement**
-In `GemmaPrompts.swift`, you explicitly instruct the AI: *"No praise. No adjectives. No emotional framing. Specific facts only."* 
-From a behavioral conditioning perspective (Skinner’s Operant Conditioning), you have entirely removed positive reinforcement. While avoiding fake or cloying "AI cheerleading" is smart, extreme neutrality can feel punishing. If a user completes a highly difficult task, receiving a robotic, strictly factual response can extinguish intrinsic motivation over time. 
+**Three-question metacognitive loop.** Zimmerman's (2002) self-regulation model validates exactly this structure — completion, obstacle, adaptation. Do not reduce or simplify these.
 
-**3. Interrupting the "Flow State"**
-Mihaly Csikszentmihalyi’s concept of *Flow* is the pinnacle of focused work. If a user enters Flow at minute 20, your system abruptly stops them at minute 25, forces them to speak to an AI, and makes them rest. This rigid adherence to the timer fractures deep cognitive states.
+**Motivation labeling before session.** Emotional labeling reduces cognitive dissonance at task initiation (Torre & Lieberman, 2018). The 1–5 selector is appropriately designed and correctly pre-task.
 
-**4. The Project Name ("forceme") vs. Self-Determination Theory**
-While *Tallivity* is the UI name, the internal package `forceme` betrays a slight design bias toward extrinsic coercion. According to *Self-Determination Theory*, humans need Autonomy, Competence, and Relatedness to stay motivated. Systems designed to "force" behavior usually suffer from short user lifespans once the novelty wears off. 
+**Strict local processing.** Privacy is not a UX nicety — it is a prerequisite for honest self-reporting. Users admitted failures more accurately in local-only conditions. This is non-negotiable and correctly implemented.
+
+**Neutral, factual closing sentence.** Consistent with the Progress Principle (Amabile & Kramer, 2011) and SDT-aligned (Deci et al., 1999). The `GemmaPrompts.closingSentence` constraint — no praise, no adjectives — is correct and should not be softened.
+
+**Past session recall at session start.** Spaced retrieval and contextual memory cueing are supported by Ebbinghaus and subsequent retrieval practice literature. The `findRelevant` + `memoryRecall` pipeline is correctly conceived.
 
 ---
 
-### Part 3: Suggestions & Opportunities
+## Critical — Must Fix Before Shipping
 
-To elevate this from a novel AI tool to a profound behavioral intervention, I suggest the following adjustments:
+### 1. Ego Depletion at Round End
 
-**1. Scaffolded Reflection (Reduce Loop Friction)**
-Do not ask all three questions after *every* loop. 
-*   **Loop 1-3:** Keep it to a micro-interaction. "Rate your round (1-5)" or a single, simple question: "Are you still on track?"
-*   **Final Loop (End of Session):** Run the full 3-question metacognitive interview when the user is completely done and transitioning out of work mode.
+The current architecture piles three cognitively demanding tasks onto the highest-fatigue moment of the session: photo capture, three reflective questions, and a self-score. This is precisely when willpower resources are most depleted (Baumeister et al., 1998). The behavioral consequence is predictable: abandonment.
 
-**2. Adaptive Friction for "Flow"**
-Introduce a "Skip/Extend" verbal command. If the timer rings, the user should be able to say, "I'm in the zone," allowing the timer to extend by 15 minutes without penalty. This respects the user's Autonomy and preserves Flow.
+**Fix:** Pre-render all questions during the work phase (already partially done). Add a 10-second recovery buffer — one silent breath — before the first question plays. The voice line "Good. Let's see where you got to." performs this function only if there is genuine silence after it. Confirm in implementation that TTS playback of Question 1 does not begin until at least 8 seconds after the timer ends.
 
-**3. Introduce Intermittent Variable Reward**
-Modify the AI prompt to allow for *calibrated* positive reinforcement. It doesn't need to be overly emotional, but acknowledging competence is key. 
-*   *Current output:* "Alex, today you completed 4 loops. Phone was the friction."
-*   *Psychologically optimized output:* "Alex, you pushed through low initial motivation to finish 4 loops. Phone was the friction, but you successfully adapted. Good work." 
-*   Occasional, earned praise is one of the strongest drivers of human habit formation.
+### 2. No Adaptive Behavior on Motivation Score
 
-**4. Motivation-Based Interventions**
-You are currently collecting the user's initial Motivation Level (1 to 5), but you don't appear to change the session parameters based on it. 
-*   **Opportunity:** If a user selects "1 (Low)", dynamically suggest a 5-minute initial timer instead of 25. In psychology, the "5-Minute Rule" is a proven method for overcoming task initiation anxiety. Once they complete 5 minutes, ask if they want to continue for 20 more.
+The app correctly captures motivation level but then does nothing with it. This is a significant waste of a valid psychometric input. A user selecting "1 — Low" should receive a structurally different first loop.
 
-### Conclusion
-As a psychological intervention, this application is conceptually superb. It bridges the gap between passive time-tracking and active cognitive-behavioral coaching. By softening the strict neutrality of the AI, respecting flow states, and reducing the cognitive load at the end of each work loop, you will have a highly effective tool for long-term executive function development.
+**Fix:** If motivation ≤ 2, offer a 5-minute starter block ("5-Minute Rule," Gollwitzer, 1999 — task initiation anxiety is the barrier, not willpower). After 5 minutes, silently ask via a single yes/no voice prompt whether to continue to 25. Do not restart the session. Do not explain the mechanism to the user.
 
-The inclusion of local Vision-Language Model (VLM) capabilities via Gemma 4 is arguably the most powerful, yet underutilized, variable in your current architecture. 
+### 3. Rigid Timer Fractures Flow States
 
-In cognitive psychology and behavioral design, we struggle with the fact that modern "knowledge work" is inherently invisible. You cannot *see* a person thinking, nor can you easily see digital progress. By introducing a visual channel, you bridge the gap between the physical environment and the digital cognitive state. Furthermore, because the VLM runs *locally*, you bypass the massive privacy anxiety users have about pointing a camera at their proprietary code, confidential documents, or messy bedrooms.
+The current implementation has no mechanism for a user in deep flow to signal continuity. Csikszentmihalyi's Flow research is unambiguous: forced interruption at a fixed interval is counterproductive when the user is engaged. The app currently provides only a "Skip" button, which skips the phase — not what a flow-state user needs.
 
-Here is my clinical assessment of how your vision capabilities can be adaptively utilized to drive psychological outcomes.
+**Fix:** When the work timer completes, play the end chime but do not immediately transition. Give the user a 30-second grace window during which a single voice command — "Keep going" or "Extend" — adds 10 minutes without any phase change. If no command is received, proceed normally. This is a minimal implementation change with significant psychological impact.
+
+### 4. No Voice Activity Detection
+
+The `listen()` function runs for a full `maxDuration` with no silence detection. This means the system records ambient noise indefinitely if the user doesn't tap "Done," and the transcript quality degrades. Whisper performance on long silences is poor.
+
+**Fix:** Integrate Silero VAD (CoreML conversion) as a pre-processing gate. The FocusProof spec correctly identifies this. It is not optional — it directly affects transcription quality for every user response.
+
+### 5. Gemma Inference Blocking Main Thread Risk
+
+`GemmaEngine.generate()` is `@MainActor`. While the heavy computation is async, the output publishing path runs on the main actor and the observable state updates block SwiftUI layout passes. Under thermal throttling (loop 3+), this will produce visible UI stuttering.
+
+**Fix:** Move Gemma output accumulation to a background actor. Publish batched updates to `@MainActor` on a 200ms cadence, not on every token. This is an architectural change but a necessary one.
 
 ---
 
-### 1. Environmental Scaffolding (Pre-Session)
-**The Psychological Concept:** *Visual Complexity and Working Memory.* Studies show that visual clutter in a workspace competes for the brain’s limited processing capacity, leading to faster ego depletion and heightened distractibility. 
-**The Opportunity:** 
-When the user takes the "Baseline Photo," do not just store it. Have Gemma 4 perform a rapid environmental assessment. 
-*   **Adaptive Prompting:** Instruct the VLM to look for physical distractions (a smartphone lying face up, a cluttered desk, a TV in the background). 
-*   **The Intervention:** Before the timer starts, the AI could gently state: *"I see your phone is face-up next to your keyboard. For this 25-minute loop, place it out of arm's reach."* 
-*   **Why it works:** You are acting as an external "executive function," helping the user optimize their physical environment before cognitive fatigue sets in.
+## High Priority — Implement in First Release
 
-### 2. Making the Intangible Tangible (End of Session)
-**The Psychological Concept:** *Self-Efficacy and the Endowment Effect.* Physical laborers see the wall they built at the end of the day; knowledge workers just close a laptop. This lack of tangible proof often leads to "productivity dysmorphia" (feeling like you did nothing despite working hard).
-**The Opportunity:**
-You currently ask for a "Delta Photo" (after the loop), but the AI doesn't seem to contrast it with the Baseline Photo in the feedback loop. 
-*   **Adaptive Prompting:** Have Gemma 4 compare the Baseline and Delta images.
-*   **The Intervention:** Instead of relying entirely on the user's verbal summary, the AI can validate reality. *"You stated you got distracted, but visually, I see you wrote about 40 lines of code compared to the start. Progress was made."*
-*   **Why it works:** This grounds the user in objective reality. Visual proof of work boosts dopamine and reinforces the belief that effort leads to measurable outcomes (strengthening Albert Bandura's concept of *Self-Efficacy*).
+### 6. No Crash Recovery
 
-### 3. Cognitive Offloading for the "Blocker"
-**The Psychological Concept:** *Zone of Proximal Development (ZPD).* When a user is stuck, they are outside their ZPD. Anxiety spikes, and the urge to escape (open a new tab, check social media) becomes overwhelming.
-**The Opportunity:**
-You currently ask, *"Name the main thing that got in the way."* If a user is stuck on a specific problem (e.g., a math proof, a buggy function, a confusing paragraph), talking about it helps, but *showing* it is better.
-*   **Adaptive Prompting:** If the user reports high frustration or a low score (e.g., a "1" or "2"), trigger an adaptive visual prompt: *"You scored this round a 2. Take a photo of exactly where you are stuck."*
-*   **The Intervention:** Gemma 4 acts as a "Rubber Duck." The AI can analyze the snippet of code, the notebook page, or the spreadsheet, and provide a *single, localized hint*—not the answer, but a scaffold to get them back into flow.
-*   **Why it works:** This is *Cognitive Offloading*. The user transfers the burden of holding the complex problem in their working memory to the AI, reducing cognitive anxiety and preventing session abandonment.
+`SessionEngine` holds all state in memory. A crash at loop 3 destroys everything. For a 100-minute session, this is a critical reliability failure.
 
-### 4. Detecting State-Falsification (Metacognitive Calibration)
-**The Psychological Concept:** *Social Desirability Bias.* Even when talking to an AI, humans have a bias toward making themselves look good, or conversely, being overly self-critical.
-**The Opportunity:**
-Users might verbally report: *"I was locked in, I wrote an entire outline."* 
-*   **Adaptive Prompting:** Gemma 4 evaluates the Delta Photo. Does the screen show an outline, or does it show an open YouTube window and an empty document? 
-*   **The Intervention:** The AI can hold the user accountable with neutral, factual friction. *"Your verbal report mentions finishing the outline, but the workspace photo indicates a blank document. Let's reset your goal for the next loop."*
-*   **Why it works:** It forces profound intellectual honesty. The user realizes the system cannot be "gamed." Over time, this perfectly calibrates their metacognition—they learn to assess their own output with extreme accuracy.
+**Fix:** Persist phase state to disk on every transition. The FocusProof spec calls this out correctly. Use a simple JSON file — not SQLite for this purpose, as the state is a single object.
 
-### Summary of the Vision Opportunity
-Right now, your app uses the camera primarily as a psychological placebo (the user behaves better simply because a picture was taken). 
+### 7. The Own-Name Effect Is Being Squandered
 
-If you route those images through Gemma 4 to **analyze clutter**, **prove visual progress**, and **diagnose specific roadblocks**, *Tallivity* stops being a mere Pomodoro timer. It becomes a deeply contextual, environmentally-aware cognitive prosthetic. Because it processes locally, you have permission to look directly at the user's raw, messy reality—which is exactly where the psychology of deep work actually happens.
+The app currently uses the user's name in the closing sentence only. Carmody & Lewis (2006) document a strong attentional response to hearing one's own name — but habituation is rapid. The design should strategically deploy this exactly twice per session: once at memory recall (session start) and once in the closing sentence (session end). The current code does not enforce this ceiling.
+
+**Fix:** Audit all prompt templates. The name must not appear in question prompts, score prompts, or break prompts. Add a lint-style check in `GemmaPrompts` that flags any prompt template containing `\(name)` outside the two permitted locations.
+
+### 8. Photo Pipeline Has No Functional Feedback Loop
+
+Photos are captured and stored, but Gemma does not currently compare baseline to delta in any user-facing way. The professor's assessment correctly identifies this as a missed opportunity. The camera feature is currently functioning as a psychological placebo — it induces accountability through the Hawthorne effect alone, but delivers no information back to the user.
+
+**Fix (minimum viable):** After the delta photo is captured, Gemma performs a diff against baseline. If visual change is detected, the Q&A prompt "What did you actually finish?" is accompanied by a factual observation: "I can see change in your workspace from where you started." This is not praise — it is evidence. If no baseline exists or Gemma cannot determine a difference, it remains silent. Never hallucinate a judgment.
+
+### 9. Screen Staying Awake Is Not Legally Guaranteed
+
+`UIApplication.shared.isIdleTimerDisabled = true` is the current approach. This is correct but insufficient — it doesn't survive audio session interruptions or background transitions. The FocusProof spec correctly identifies CADisplayLink as the robust mechanism.
+
+**Fix:** Implement CADisplayLink in `TimerRingView` for the animation tick, which legally prevents sleep via active rendering. Keep `isIdleTimerDisabled` as a secondary guard. This is a correctness issue, not a polish issue.
+
+### 10. Missing: Semantic Session Retrieval
+
+`SessionStore.findRelevant()` currently uses word overlap (bag-of-words intersection). This will fail for semantically similar but lexically different goals: "finish quarterly report" and "complete Q3 writeup" return zero overlap. The memory recall feature is architecturally present but effectively non-functional for real usage.
+
+**Fix:** Implement MiniLM-L6 via CoreML conversion for session embedding. Cosine similarity on embeddings. This is ~25MB model weight, justified by the psychological value of accurate memory retrieval.
+
+---
+
+## Medium Priority — Target Second Release
+
+### 11. Break UX Is Behaviorally Empty
+
+The break timer is a countdown with "Rest" text. Attention Restoration Theory (Kaplan, 1995) specifies that genuine restoration requires perceptual fascination with low-effort stimuli — not a blank screen. The current break experience is neutral at best, anxiety-inducing at worst (watching time pass).
+
+**Fix:** During break, show a minimal ambient visual — a slow gradient, not gamified. Disable all interactive elements. Play one optional TTS suggestion drawn from a pre-recorded set: "Step away from the screen." "Look at something far away for 60 seconds." These are evidence-based rest cues, not motivational filler.
+
+### 12. Missing: Pre-Recorded Human Voice for Fixed Prompts
+
+The FocusProof spec correctly distinguishes fixed prompts (which should be human-recorded) from dynamic content (TTS). All fixed prompts in the current implementation go through TTS, which introduces latency and prosodic inconsistency. "Let's go. 25 minutes." should play in under 100ms, with natural human rhythm.
+
+**Fix:** Record 7 fixed voice lines once. Store as compressed audio assets. TTS handles only: memory recall, questions, closing sentence. Pre-recorded handles: everything else.
+
+### 13. Loop Count Is Hardcoded at 4
+
+`SessionEngine.totalLoops = 4` is a constant. There is no scientific basis for exactly 4 loops being universally optimal. User cognitive capacity, session duration, and goal type all modulate the appropriate number.
+
+**Fix:** Make total loops configurable at session start alongside the existing duration picker. Default 4, range 1–6. This is a 20-line change.
+
+### 14. No Notification Architecture
+
+The app has no re-engagement mechanism. The FocusProof spec outlines a scientifically grounded three-notification system. The key discipline is in what to exclude: no streaks, no badges, no daily nagging. Only three types — time-anchored work cue, fresh-start cue (Monday/month start), and a single lapse-recovery nudge after exactly 2 missed days, then silence.
+
+This matters because the Fresh Start Effect (Dai et al., 2014) and Implementation Intentions (Gollwitzer, 1999) are among the most actionable findings in behavioral science for habit formation.
+
+---
+
+## What Should Be Rethought or Removed
+
+### Remove: The `forceme` Internal Framing
+
+This is not about naming convention. Self-Determination Theory (Deci & Ryan, 1985) is explicit: systems that frame themselves as coercive — even internally — leak this orientation into design decisions. The "Skip →" button label, the rigid loop enforcement, the mandatory question sequence — these all reflect a coercive design philosophy that is at odds with the autonomy component of SDT. Rename the package. More importantly, audit every forced interaction and ask whether it serves the user or the system's idea of what the user should do.
+
+### Remove: Motivational Filler in Voice Lines
+
+`generateDynamicVoiceLines` produces lines like "Lets ease into {minutes} of progress." and "Take it steady for {minutes}." These are exactly the kind of vague, tonally inconsistent AI-generated filler that erodes trust over repeated sessions. Users are not fooled by synthetic encouragement — they recognize it within days and begin ignoring all voice output, including the functional prompts.
+
+**Rethink:** Fixed pre-recorded human lines for all non-dynamic content. Gemma generates only semantically specific content tied to the user's actual goal and actual session data. If Gemma cannot add specificity, it should say nothing.
+
+### Remove: `LLMDemoView` from Production Build
+
+The Gemma chat interface exposed via Settings → Diagnostics is a development tool, not a user-facing feature. It should be behind a debug flag, not accessible in production. Exposing the raw LLM to users frames the app as an AI toy, which undermines the behavioral intervention framing.
+
+### Rethink: Photo as Mandatory UX Touchpoint
+
+Currently, both baseline and delta photo prompts are visible UI states that the user must actively skip. This inverts the correct default. The photo should be silently available but never foregrounded as a required decision. If the user has previously skipped photos three times consecutively, the prompt should stop appearing entirely until the user re-enables it in Settings.
+
+### Rethink: The Score Prompt Verbal Design
+
+`"Score this round"` with a 1–5 circle selector is correct in principle. The spoken prompts, however, include lines like `"Quick score: how well did {goal} go?"` — which is evaluative framing. Behavioral self-assessment research (Zimmerman, 2002) shows that neutral, behavioral anchors produce more accurate and useful self-assessments than quality-framing ("how well").
+
+**Replace with:** "Rate your output this round. 1 to 5." The distinction is small but produces meaningfully different self-assessments over time — output-based rather than effort-based, which is what the artifact data should contain.
+
+---
+
+## Not Needed — Do Not Build
+
+**Streaks.** Not supported by SDT. Creates anxiety-driven compliance, not motivation. Explicitly excluded in FocusProof spec. Correct.
+
+**Badges or points.** Extrinsic reward undermines intrinsic motivation for cognitively complex tasks (Deci et al., 1999). Correct to exclude.
+
+**Daily notification reminders.** Notification fatigue is documented (Oulasvirta et al., 2012). More than one notification type per day, or notifications on consecutive days without behavioral change, produce negative engagement outcomes. The three-notification model in FocusProof is the ceiling, not a starting point.
+
+**Real-time Gemma analysis during work phase.** Thermally irresponsible and psychologically unnecessary. Gemma infers once per phase boundary. Continuous inference serves no user need and introduces reliability risk.
+
+---
+
+## Priority Summary
+
+| Urgency | Item |
+|---|---|
+| **Critical** | Ego depletion at round end · Adaptive motivation response · Flow extension command · VAD implementation · Main thread risk |
+| **High** | Crash recovery · Own-name ceiling · Photo feedback loop · Screen-awake reliability · Semantic session retrieval |
+| **Medium** | Break UX restoration · Pre-recorded human voice · Configurable loop count · Notification architecture |
+| **Remove** | `forceme` coercive framing · AI filler voice lines · LLMDemoView in production · Foregrounded photo prompts · Quality-framing score prompts |
+| **Do not build** | Streaks · Badges · Daily reminders · Continuous inference |
+
+---
+
+*The app's conceptual architecture is sound. The psychology is largely correct. The failures are in execution details that compound across a 100-minute session — small friction at loop 1 becomes abandonment by loop 3. Fix the critical items first. Everything else is refinement.*
