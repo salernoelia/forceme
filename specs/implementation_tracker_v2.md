@@ -1,4 +1,4 @@
-Title: Tallivity Critical+High Implementation Checkpoints
+Title: Tallyvity Critical+High Implementation Checkpoints
 Metadata: owner=eliasalerno | start=2026-04-21 | branch=main | source=reviews/review_1.md | constraints=CLAUDE.md
 Legend: todo | in-progress | blocked | done
 

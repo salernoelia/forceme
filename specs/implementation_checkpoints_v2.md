@@ -68,7 +68,7 @@ Read memory
 
 Created memory file [](file:///Users/eliasalerno/Library/Application%20Support/Code/User/workspaceStorage/c837693e830fffb58465c351ceeb46fc/GitHub.copilot-chat/memory-tool/memories/OWJhMDU2MjktM2RlZS00Y2JjLTlmNTgtYWM5NTliOWZkOTkw/plan.md)
 
-## Plan: Tallivity Critical+High Rollout
+## Plan: Tallyvity Critical+High Rollout
 
 This is the professional execution plan, sequenced by dependency, with explicit commit checkpoints and a permanent local tracker. It preserves the current design guidelines in CLAUDE.md: minimalist UI, no unnecessary abstraction, calm/system visual language, and no behavior regressions.
 

@@ -133,7 +133,7 @@ struct FocusView: View {
 
             VStack(spacing: 44) {
                 VStack(spacing: 10) {
-                    Text("Tallivity")
+                    Text("Tallyvity")
                         .font(.system(size: 34, weight: .light, design: .rounded))
                         .foregroundStyle(.primary)
 

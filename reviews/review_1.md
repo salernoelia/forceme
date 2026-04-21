@@ -1,7 +1,7 @@
-# Tallivity / tallivity — Clinical Review & Implementation Roadmap
+# Tallyvity / Tallyvity — Clinical Review & Implementation Roadmap
 
 **Reviewed by:** Cognitive-Behavioral Psychology, UX, Pedagogy
-**Scope:** Existing codebase (`tallyvity`), psychology assessment, tallivity specification
+**Scope:** Existing codebase (`tallyvity`), psychology assessment, Tallyvity specification
 **Standard:** Scientifically grounded, motivationally optimal Pomodoro intervention
 
 ---
@@ -46,7 +46,7 @@ The current implementation has no mechanism for a user in deep flow to signal co
 
 The `listen()` function runs for a full `maxDuration` with no silence detection. This means the system records ambient noise indefinitely if the user doesn't tap "Done," and the transcript quality degrades. Whisper performance on long silences is poor.
 
-**Fix:** Integrate Silero VAD (CoreML conversion) as a pre-processing gate. The tallivity spec correctly identifies this. It is not optional — it directly affects transcription quality for every user response.
+**Fix:** Integrate Silero VAD (CoreML conversion) as a pre-processing gate. The Tallyvity spec correctly identifies this. It is not optional — it directly affects transcription quality for every user response.
 
 ### 5. Gemma Inference Blocking Main Thread Risk
 
@@ -62,7 +62,7 @@ The `listen()` function runs for a full `maxDuration` with no silence detection.
 
 `SessionEngine` holds all state in memory. A crash at loop 3 destroys everything. For a 100-minute session, this is a critical reliability failure.
 
-**Fix:** Persist phase state to disk on every transition. The tallivity spec calls this out correctly. Use a simple JSON file — not SQLite for this purpose, as the state is a single object.
+**Fix:** Persist phase state to disk on every transition. The Tallyvity spec calls this out correctly. Use a simple JSON file — not SQLite for this purpose, as the state is a single object.
 
 ### 7. The Own-Name Effect Is Being Squandered
 
@@ -78,7 +78,7 @@ Photos are captured and stored, but Gemma does not currently compare baseline to
 
 ### 9. Screen Staying Awake Is Not Legally Guaranteed
 
-`UIApplication.shared.isIdleTimerDisabled = true` is the current approach. This is correct but insufficient — it doesn't survive audio session interruptions or background transitions. The tallivity spec correctly identifies CADisplayLink as the robust mechanism.
+`UIApplication.shared.isIdleTimerDisabled = true` is the current approach. This is correct but insufficient — it doesn't survive audio session interruptions or background transitions. The Tallyvity spec correctly identifies CADisplayLink as the robust mechanism.
 
 **Fix:** Implement CADisplayLink in `TimerRingView` for the animation tick, which legally prevents sleep via active rendering. Keep `isIdleTimerDisabled` as a secondary guard. This is a correctness issue, not a polish issue.
 
@@ -102,7 +102,7 @@ The break timer is a countdown with "Rest" text. Attention Restoration Theory (K
 
 ### 12. Missing: Pre-Recorded Human Voice for Fixed Prompts
 
-The tallivity spec correctly distinguishes fixed prompts (which should be human-recorded) from dynamic content (TTS). All fixed prompts in the current implementation go through TTS, which introduces latency and prosodic inconsistency. "Let's go. 25 minutes." should play in under 100ms, with natural human rhythm.
+The Tallyvity spec correctly distinguishes fixed prompts (which should be human-recorded) from dynamic content (TTS). All fixed prompts in the current implementation go through TTS, which introduces latency and prosodic inconsistency. "Let's go. 25 minutes." should play in under 100ms, with natural human rhythm.
 
 **Fix:** Record 7 fixed voice lines once. Store as compressed audio assets. TTS handles only: memory recall, questions, closing sentence. Pre-recorded handles: everything else.
 
@@ -114,7 +114,7 @@ The tallivity spec correctly distinguishes fixed prompts (which should be human-
 
 ### 14. No Notification Architecture
 
-The app has no re-engagement mechanism. The tallivity spec outlines a scientifically grounded three-notification system. The key discipline is in what to exclude: no streaks, no badges, no daily nagging. Only three types — time-anchored work cue, fresh-start cue (Monday/month start), and a single lapse-recovery nudge after exactly 2 missed days, then silence.
+The app has no re-engagement mechanism. The Tallyvity spec outlines a scientifically grounded three-notification system. The key discipline is in what to exclude: no streaks, no badges, no daily nagging. Only three types — time-anchored work cue, fresh-start cue (Monday/month start), and a single lapse-recovery nudge after exactly 2 missed days, then silence.
 
 This matters because the Fresh Start Effect (Dai et al., 2014) and Implementation Intentions (Gollwitzer, 1999) are among the most actionable findings in behavioral science for habit formation.
 
@@ -149,11 +149,11 @@ Currently, both baseline and delta photo prompts are visible UI states that the 
 
 ## Not Needed — Do Not Build
 
-**Streaks.** Not supported by SDT. Creates anxiety-driven compliance, not motivation. Explicitly excluded in tallivity spec. Correct.
+**Streaks.** Not supported by SDT. Creates anxiety-driven compliance, not motivation. Explicitly excluded in Tallyvity spec. Correct.
 
 **Badges or points.** Extrinsic reward undermines intrinsic motivation for cognitively complex tasks (Deci et al., 1999). Correct to exclude.
 
-**Daily notification reminders.** Notification fatigue is documented (Oulasvirta et al., 2012). More than one notification type per day, or notifications on consecutive days without behavioral change, produce negative engagement outcomes. The three-notification model in tallivity is the ceiling, not a starting point.
+**Daily notification reminders.** Notification fatigue is documented (Oulasvirta et al., 2012). More than one notification type per day, or notifications on consecutive days without behavioral change, produce negative engagement outcomes. The three-notification model in Tallyvity is the ceiling, not a starting point.
 
 **Real-time Gemma analysis during work phase.** Thermally irresponsible and psychologically unnecessary. Gemma infers once per phase boundary. Continuous inference serves no user need and introduces reliability risk.
 
