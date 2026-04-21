@@ -38,7 +38,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {

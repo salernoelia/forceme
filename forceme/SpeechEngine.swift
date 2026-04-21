@@ -31,6 +31,9 @@ final class SpeechEngine {
     private var currentModel: SettingsStore.WhisperModel = .small
     private var currentVoice: SettingsStore.Voice = .dylan
 
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+
     func requestPermissionAndLoad(settings: SettingsStore) async {
         let granted = await AVAudioApplication.requestRecordPermission()
         guard granted else {
@@ -39,6 +42,7 @@ final class SpeechEngine {
         }
         currentModel = settings.whisperModel
         currentVoice = settings.voice
+        observeAudioSession()
         await loadModels(model: currentModel, voice: currentVoice)
     }
 
@@ -56,8 +60,8 @@ final class SpeechEngine {
 
     private func configureAudioSession() throws {
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth])
-        try session.setActive(true)
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
     }
 
     private func loadModels(model: SettingsStore.WhisperModel, voice: SettingsStore.Voice) async {
@@ -77,8 +81,7 @@ final class SpeechEngine {
     }
 
     private func makeWhisper(model: SettingsStore.WhisperModel) async throws -> WhisperKit {
-        let config = WhisperKitConfig(model: model.rawValue)
-        let w = try await WhisperKit(config)
+        let w = try await WhisperKit(WhisperKitConfig(model: model.rawValue))
         try await w.loadModels()
         return w
     }
@@ -90,16 +93,20 @@ final class SpeechEngine {
     }
 
     func startRecording() throws {
+        try configureAudioSession()
+
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("m4a")
+            .appendingPathExtension("wav")
         recordingURL = url
 
         let settings: [String: Any] = [
-            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVFormatIDKey: Int(kAudioFormatLinearPCM),
             AVSampleRateKey: 16000,
             AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false
         ]
         recorder = try AVAudioRecorder(url: url, settings: settings)
         recorder?.record()
@@ -117,7 +124,7 @@ final class SpeechEngine {
             let results = try await whisper.transcribe(audioPath: url.path)
             let text = results.map(\.text).joined(separator: " ")
             transcript = text
-            try FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: url)
 
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 state = .idle
@@ -126,7 +133,12 @@ final class SpeechEngine {
 
             state = .speaking
             guard let tts else { throw EngineError.notLoaded }
+            let session = AVAudioSession.sharedInstance()
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            try? session.setCategory(.playback, mode: .default)
+            try? session.setActive(true)
             try await tts.play(text: text, voice: currentVoice.ttsVoice, language: "english")
+            try? configureAudioSession()
             state = .idle
         } catch {
             state = .error(error.localizedDescription)
@@ -138,6 +150,56 @@ final class SpeechEngine {
     func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    private func observeAudioSession() {
+        let nc = NotificationCenter.default
+
+        interruptionObserver = nc.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self else { return }
+            guard let typeVal = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
+
+            Task { @MainActor in
+                switch type {
+                case .began:
+                    if self.state == .recording {
+                        self.recorder?.pause()
+                    }
+                case .ended:
+                    let optionsVal = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsVal)
+                    if options.contains(.shouldResume) {
+                        try? self.configureAudioSession()
+                        if self.state == .recording {
+                            self.recorder?.record()
+                        }
+                    }
+                @unknown default: break
+                }
+            }
+        }
+
+        routeChangeObserver = nc.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let self else { return }
+            guard let reasonVal = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
+            if reason == .oldDeviceUnavailable {
+                Task { @MainActor in
+                    if self.state == .recording {
+                        self.recorder?.pause()
+                    }
+                }
+            }
+        }
     }
 }
 

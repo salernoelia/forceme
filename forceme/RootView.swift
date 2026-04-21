@@ -3,20 +3,20 @@ import SwiftUI
 struct RootView: View {
     @State private var engine = SpeechEngine()
     @State private var settings = SettingsStore()
-    @State private var selectedTab: Tab = .demo
+    @State private var selectedTab: AppTab = .demo
 
-    enum Tab { case demo, settings }
+    enum AppTab { case demo, settings }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            Tab("Demo", systemImage: "mic.fill", value: .demo) {
-                VoiceLoopView(engine: engine, settings: settings)
-            }
-            Tab("Settings", systemImage: "gearshape", value: .settings) {
-                SettingsView(engine: engine, settings: settings, onSave: {
-                    selectedTab = .demo
-                })
-            }
+            VoiceLoopView(engine: engine, settings: settings)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .tabItem { Label("Demo", systemImage: "mic.fill") }
+                .tag(AppTab.demo)
+
+            SettingsView(engine: engine, settings: settings, onSave: { selectedTab = .demo })
+                .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(AppTab.settings)
         }
         .task { await engine.requestPermissionAndLoad(settings: settings) }
     }

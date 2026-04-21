@@ -22,6 +22,7 @@ struct VoiceLoopView: View {
                 mainContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .alert("Error", isPresented: isError) {
             Button("OK") { engine.cancelError() }
         } message: {
