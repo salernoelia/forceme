@@ -176,7 +176,34 @@ final class SessionEngine {
 
     func cancelSession() {
         sessionTask?.cancel()
+        sessionTask = nil
         timerTask?.cancel()
+        timerTask = nil
+
+        // Force-stop any active capture loop and release waiting UI continuations.
+        recordingStopped = true
+        if let scoreContinuation {
+            self.scoreContinuation = nil
+            scoreContinuation.resume(returning: 3)
+        }
+        if let motivationContinuation {
+            self.motivationContinuation = nil
+            motivationContinuation.resume(returning: 3)
+        }
+        pendingScore = nil
+        pendingMotivation = nil
+
+        // Reset per-session transient state so a new start cannot reuse stale values.
+        currentLoopAnswers = []
+        currentQuestion = ""
+        transcript = ""
+        isRecording = false
+        pendingPhoto = nil
+        photoSkipped = false
+        timerSkipped = false
+        needsStarterDecision = false
+        baselinePhotoSummary = nil
+
         updateScreenAwake(enabled: false)
         store.clearCheckpoint()
         withAnimation { phase = .idle }
@@ -361,8 +388,9 @@ final class SessionEngine {
         withAnimation { phase = .backgroundPrep(loopNumber: currentLoopNumber) }
         persistCheckpoint()
 
-        await say(workStartPrompt())
+        sayNonBlocking(workStartPrompt())
         updateScreenAwake(enabled: true)
+        speech.playCue(named: "start")
         phase = .workActive(loopNumber: currentLoopNumber)
         persistCheckpoint()
         let endedBySkip = await runTimer(duration: workDuration)
@@ -379,6 +407,7 @@ final class SessionEngine {
         }
 
         haptic.impactOccurred(intensity: 0.7)
+        speech.playCue(named: "stop")
         updateScreenAwake(enabled: false)
 
         if needsStarterDecision {
@@ -443,7 +472,7 @@ final class SessionEngine {
 
         guard !Task.isCancelled else { return }
         withAnimation { phase = .selfScore(loopNumber: currentLoopNumber) }
-        await say(selectVoiceLine(
+        sayNonBlocking(selectVoiceLine(
             cue: "self_score",
             fallback: scorePromptPresets,
             replacements: ["goal": currentGoal]
@@ -558,7 +587,7 @@ final class SessionEngine {
     // MARK: - Timer
 
     private func runTimer(duration: TimeInterval) async -> Bool {
-        guard duration > 0, !Task.isCancelled else { return }
+        guard duration > 0, !Task.isCancelled else { return false }
 
         timerElapsed = 0
         timerProgress = 0
@@ -607,6 +636,14 @@ final class SessionEngine {
         await speech.speak(text: text)
     }
 
+    private func sayNonBlocking(_ text: String) {
+        guard !text.isEmpty else { return }
+        Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            await self.speech.speak(text: text)
+        }
+    }
+
     private func listen(maxDuration: TimeInterval) async -> String {
         recordingStopped = false
         withAnimation {
@@ -619,9 +656,9 @@ final class SessionEngine {
         var silentStart: Date? = nil
         while !Task.isCancelled && !recordingStopped && Date() < deadline {
             if let loudness = speech.currentInputLevel {
-                if loudness < 0.010 {
+                if loudness < 0.007 {
                     if silentStart == nil { silentStart = Date() }
-                    if let silentStart, Date().timeIntervalSince(silentStart) >= 1.4 {
+                    if let silentStart, Date().timeIntervalSince(silentStart) >= 2.2 {
                         recordingStopped = true
                     }
                 } else {

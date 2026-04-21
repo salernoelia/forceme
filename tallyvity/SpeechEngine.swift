@@ -42,6 +42,7 @@ final class SpeechEngine {
 
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
+    private var cuePlayer: AVAudioPlayer?
 
     var currentInputLevel: Float? {
         guard let recorder else { return nil }
@@ -217,6 +218,23 @@ final class SpeechEngine {
     func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+
+    func playCue(named name: String) {
+        let candidates: [URL?] = [
+            Bundle.main.url(forResource: name, withExtension: "wav", subdirectory: "sfx"),
+            Bundle.main.url(forResource: name, withExtension: "wav")
+        ]
+
+        guard let url = candidates.compactMap({ $0 }).first else { return }
+        do {
+            cuePlayer = try AVAudioPlayer(contentsOf: url)
+            cuePlayer?.volume = 0.9
+            cuePlayer?.prepareToPlay()
+            cuePlayer?.play()
+        } catch {
+            cuePlayer = nil
+        }
     }
 
     private func observeAudioSession() {
