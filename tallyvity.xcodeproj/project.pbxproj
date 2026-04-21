@@ -14,10 +14,10 @@
 		0E010A0E2F97827C0084F23A /* tokenizer.json in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A032F97827C0084F23A /* tokenizer.json */; };
 		0E010A0F2F97827C0084F23A /* model.safetensors in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A002F97827C0084F23A /* model.safetensors */; };
 		0E010A102F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A022F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc */; };
-		0E010A162F9786FF0084F23A /* start.wav.asd in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A122F9786FF0084F23A /* start.wav.asd */; };
-		0E010A172F9786FF0084F23A /* stop.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A132F9786FF0084F23A /* stop.wav */; };
-		0E010A182F9786FF0084F23A /* stop.wav.asd in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A142F9786FF0084F23A /* stop.wav.asd */; };
-		0E010A192F9786FF0084F23A /* start.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A112F9786FF0084F23A /* start.wav */; };
+		0E010A1E2F978C650084F23A /* end.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A1A2F978C650084F23A /* end.wav */; };
+		0E010A1F2F978C650084F23A /* end.wav.asd in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A1B2F978C650084F23A /* end.wav.asd */; };
+		0E010A202F978C650084F23A /* rate.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A1D2F978C650084F23A /* rate.wav */; };
+		0E010A212F978C650084F23A /* rate.asd in Resources */ = {isa = PBXBuildFile; fileRef = 0E010A1C2F978C650084F23A /* rate.asd */; };
 		0E64F01A2F9707840059DD25 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F0192F9707840059DD25 /* MLX */; };
 		0E64F01C2F9707840059DD25 /* MLXFast in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F01B2F9707840059DD25 /* MLXFast */; };
 		0E64F01E2F9707840059DD25 /* MLXNN in Frameworks */ = {isa = PBXBuildFile; productRef = 0E64F01D2F9707840059DD25 /* MLXNN */; };
@@ -43,10 +43,10 @@
 		0E010A032F97827C0084F23A /* tokenizer.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tokenizer.json; sourceTree = "<group>"; };
 		0E010A042F97827C0084F23A /* tokenizer_config.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tokenizer_config.json; sourceTree = "<group>"; };
 		0E010A052F97827C0084F23A /* vocab.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = vocab.txt; sourceTree = "<group>"; };
-		0E010A112F9786FF0084F23A /* start.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = start.wav; sourceTree = "<group>"; };
-		0E010A122F9786FF0084F23A /* start.wav.asd */ = {isa = PBXFileReference; lastKnownFileType = file; path = start.wav.asd; sourceTree = "<group>"; };
-		0E010A132F9786FF0084F23A /* stop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = stop.wav; sourceTree = "<group>"; };
-		0E010A142F9786FF0084F23A /* stop.wav.asd */ = {isa = PBXFileReference; lastKnownFileType = file; path = stop.wav.asd; sourceTree = "<group>"; };
+		0E010A1A2F978C650084F23A /* end.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = end.wav; sourceTree = "<group>"; };
+		0E010A1B2F978C650084F23A /* end.wav.asd */ = {isa = PBXFileReference; lastKnownFileType = file; path = end.wav.asd; sourceTree = "<group>"; };
+		0E010A1C2F978C650084F23A /* rate.asd */ = {isa = PBXFileReference; lastKnownFileType = file; path = rate.asd; sourceTree = "<group>"; };
+		0E010A1D2F978C650084F23A /* rate.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = rate.wav; sourceTree = "<group>"; };
 		0E32E5C82F96E1210035B67D /* tallyvity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tallyvity.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EA4389A2F96E1D30087FD93 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -102,10 +102,10 @@
 		0E010A152F9786FF0084F23A /* sfx */ = {
 			isa = PBXGroup;
 			children = (
-				0E010A112F9786FF0084F23A /* start.wav */,
-				0E010A122F9786FF0084F23A /* start.wav.asd */,
-				0E010A132F9786FF0084F23A /* stop.wav */,
-				0E010A142F9786FF0084F23A /* stop.wav.asd */,
+				0E010A1A2F978C650084F23A /* end.wav */,
+				0E010A1B2F978C650084F23A /* end.wav.asd */,
+				0E010A1C2F978C650084F23A /* rate.asd */,
+				0E010A1D2F978C650084F23A /* rate.wav */,
 			);
 			path = sfx;
 			sourceTree = "<group>";
@@ -229,10 +229,10 @@
 				0E010A0C2F97827C0084F23A /* vocab.txt in Resources */,
 				0E010A0D2F97827C0084F23A /* tokenizer_config.json in Resources */,
 				0E010A0E2F97827C0084F23A /* tokenizer.json in Resources */,
-				0E010A162F9786FF0084F23A /* start.wav.asd in Resources */,
-				0E010A172F9786FF0084F23A /* stop.wav in Resources */,
-				0E010A182F9786FF0084F23A /* stop.wav.asd in Resources */,
-				0E010A192F9786FF0084F23A /* start.wav in Resources */,
+				0E010A1E2F978C650084F23A /* end.wav in Resources */,
+				0E010A1F2F978C650084F23A /* end.wav.asd in Resources */,
+				0E010A202F978C650084F23A /* rate.wav in Resources */,
+				0E010A212F978C650084F23A /* rate.asd in Resources */,
 				0E010A0F2F97827C0084F23A /* model.safetensors in Resources */,
 				0E010A102F97827C0084F23A /* silero-vad-unified-256ms-v6.0.0.mlmodelc in Resources */,
 			);

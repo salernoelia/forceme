@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ScoreSelector: View {
     var onSelect: (Int) -> Void
+    var onTapRate: (() -> Void)? = nil
 
     @State private var selected: Int? = nil
     @State private var scales: [CGFloat] = Array(repeating: 1.0, count: 5)
@@ -27,7 +28,11 @@ struct ScoreSelector: View {
                         )
                         .frame(width: 38, height: 38)
                         .scaleEffect(scales[i - 1])
-                        .onTapGesture { guard !submitted else { return }; tap(i) }
+                        .onTapGesture {
+                            guard !submitted else { return }
+                            onTapRate?()
+                            tap(i)
+                        }
                 }
             }
 

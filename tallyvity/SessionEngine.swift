@@ -7,6 +7,12 @@ import UIKit
 @Observable
 final class SessionEngine {
 
+    private enum TimerResult {
+        case completed
+        case skipped
+        case cancelled
+    }
+
     enum Phase: Equatable {
         case idle
         case motivationSelection
@@ -259,6 +265,10 @@ final class SessionEngine {
         withAnimation { phase = .idle }
     }
 
+    func playRateCue() {
+        speech.playCue(named: "rate")
+    }
+
     var isProcessingSpeech: Bool {
         switch speech.state {
         case .transcribing, .speaking, .loadingModels: return true
@@ -285,6 +295,10 @@ final class SessionEngine {
         if case .workActive = phase { return true }
         if case .backgroundPrep = phase { return true }
         return false
+    }
+
+    var usesAutoStopCapture: Bool {
+        true
     }
 
     // MARK: - Session runner
@@ -390,14 +404,14 @@ final class SessionEngine {
 
         sayNonBlocking(workStartPrompt())
         updateScreenAwake(enabled: true)
-        speech.playCue(named: "start")
         phase = .workActive(loopNumber: currentLoopNumber)
         persistCheckpoint()
-        let endedBySkip = await runTimer(duration: workDuration)
+        let timerResult = await runTimer(duration: workDuration)
         guard !Task.isCancelled else { updateScreenAwake(enabled: false); return }
+        guard timerResult != .cancelled else { updateScreenAwake(enabled: false); return }
 
         withAnimation { phase = .roundEnd }
-        let shouldExtend = endedBySkip ? false : await waitForFlowExtensionDecision()
+        let shouldExtend = timerResult == .completed ? await waitForFlowExtensionDecision() : false
         if shouldExtend {
             workDuration = 10 * 60
             withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
@@ -407,7 +421,9 @@ final class SessionEngine {
         }
 
         haptic.impactOccurred(intensity: 0.7)
-        speech.playCue(named: "stop")
+        if timerResult == .completed || timerResult == .skipped {
+            speech.playCue(named: "end")
+        }
         updateScreenAwake(enabled: false)
 
         if needsStarterDecision {
@@ -586,8 +602,8 @@ final class SessionEngine {
 
     // MARK: - Timer
 
-    private func runTimer(duration: TimeInterval) async -> Bool {
-        guard duration > 0, !Task.isCancelled else { return false }
+    private func runTimer(duration: TimeInterval) async -> TimerResult {
+        guard duration > 0, !Task.isCancelled else { return .cancelled }
 
         timerElapsed = 0
         timerProgress = 0
@@ -597,7 +613,7 @@ final class SessionEngine {
         let start = clock.now
 
         while true {
-            guard !Task.isCancelled else { return false }  // cancel → do NOT set progress = 1
+            guard !Task.isCancelled else { return .cancelled }  // cancel → do NOT set progress = 1
             guard !timerSkipped else { break }       // skip  → fall through to set progress = 1
 
             let d = clock.now - start
@@ -618,7 +634,7 @@ final class SessionEngine {
             do {
                 try await Task.sleep(for: .milliseconds(150))
             } catch {
-                return false  // CancellationError → hard exit, do NOT complete timer
+                return .cancelled  // CancellationError → hard exit, do NOT complete timer
             }
         }
 
@@ -626,7 +642,7 @@ final class SessionEngine {
         let skipped = timerSkipped
         timerProgress = 1.0
         timerElapsed = duration
-        return skipped
+        return skipped ? .skipped : .completed
     }
 
     // MARK: - Audio helpers

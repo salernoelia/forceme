@@ -49,7 +49,7 @@ struct FocusView: View {
             captureView(
                 title: "Say your goal",
                 hint: "What are you working on?",
-                showStop: true
+                showStop: !session.usesAutoStopCapture
             )
 
         case .photoBaseline:
@@ -215,9 +215,14 @@ struct FocusView: View {
     private var selfScoreView: some View {
         VStack(spacing: 40) {
             Spacer()
-            ScoreSelector { score in
-                session.submitScore(score)
-            }
+            ScoreSelector(
+                onSelect: { score in
+                    session.submitScore(score)
+                },
+                onTapRate: {
+                    session.playRateCue()
+                }
+            )
             Spacer()
         }
     }
@@ -445,7 +450,7 @@ struct FocusView: View {
             Spacer()
 
             // Done button
-            if session.isRecording {
+            if session.isRecording && !session.usesAutoStopCapture {
                 Button(action: session.stopListening) {
                     Text("Next")
                         .font(.subheadline.weight(.medium))
