@@ -220,21 +220,33 @@ final class SpeechEngine {
         UIApplication.shared.open(url)
     }
 
-    func playCue(named name: String) {
+    @discardableResult
+    func playCue(named name: String) -> Bool {
         let candidates: [URL?] = [
             Bundle.main.url(forResource: name, withExtension: "wav", subdirectory: "sfx"),
             Bundle.main.url(forResource: name, withExtension: "wav")
         ]
 
-        guard let url = candidates.compactMap({ $0 }).first else { return }
+        guard let url = candidates.compactMap({ $0 }).first else { return false }
         do {
             cuePlayer = try AVAudioPlayer(contentsOf: url)
             cuePlayer?.volume = 0.9
             cuePlayer?.prepareToPlay()
             cuePlayer?.play()
+            return true
         } catch {
             cuePlayer = nil
+            return false
         }
+    }
+
+    func playCueAndWait(named name: String) async -> Bool {
+        guard playCue(named: name), let player = cuePlayer else { return false }
+        while player.isPlaying {
+            if Task.isCancelled { return false }
+            try? await Task.sleep(for: .milliseconds(30))
+        }
+        return true
     }
 
     private func observeAudioSession() {

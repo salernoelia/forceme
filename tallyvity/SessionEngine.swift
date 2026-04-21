@@ -345,7 +345,7 @@ final class SessionEngine {
 
         // Goal capture
         withAnimation { phase = .goalCapture }
-        await say(goalPromptPresets.randomElement() ?? "Tell me your goal for today.")
+        await sayFixed(cue: "goal_prompt", fallback: goalPromptPresets.randomElement() ?? "Tell me your goal for today.")
         guard !Task.isCancelled else { return }
         let goal = await listen(maxDuration: 30)
         guard !Task.isCancelled, !goal.isEmpty else {
@@ -383,7 +383,7 @@ final class SessionEngine {
         }
 
         // Photo baseline
-        await say(selectVoiceLine(
+        await sayFixed(cue: "photo_baseline_prompt", fallback: selectVoiceLine(
             cue: "photo_baseline",
             fallback: photoPromptPresets,
             replacements: ["goal": currentGoal]
@@ -433,7 +433,7 @@ final class SessionEngine {
 
         if needsStarterDecision {
             needsStarterDecision = false
-            await say("Do you want to continue into the full flow? Say yes or no.")
+            await sayFixed(cue: "starter_continue_prompt", fallback: "Do you want to continue into the full flow? Say yes or no.")
             let decision = await listen(maxDuration: 6).lowercased()
             if decision.contains("no") || decision.contains("stop") {
                 await finishSession()
@@ -451,7 +451,7 @@ final class SessionEngine {
         withAnimation { phase = .roundEnd }
         persistCheckpoint()
         try? await Task.sleep(for: .seconds(2))
-        await say(selectVoiceLine(
+        await sayFixed(cue: "round_end_prompt", fallback: selectVoiceLine(
             cue: "round_end",
             fallback: roundEndPresets,
             replacements: ["goal": currentGoal]
@@ -657,6 +657,14 @@ final class SessionEngine {
     private func say(_ text: String) async {
         guard !text.isEmpty, !Task.isCancelled else { return }
         await speech.speak(text: text)
+    }
+
+    private func sayFixed(cue: String, fallback: String) async {
+        guard !Task.isCancelled else { return }
+        if await speech.playCueAndWait(named: cue) {
+            return
+        }
+        await say(fallback)
     }
 
     private func sayNonBlocking(_ text: String) {

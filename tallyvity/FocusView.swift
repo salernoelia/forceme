@@ -272,6 +272,7 @@ struct FocusView: View {
         }
     }
 
+    @ViewBuilder
     private func loopDots(current: Int) -> some View {
         let loops = max(1, session.totalLoops)
         HStack(spacing: 8) {
