@@ -7,20 +7,24 @@ struct MotivationSelector: View {
     @State private var submitted = false
 
     var body: some View {
-        VStack(spacing: 34) {
+        VStack(spacing: 30) {
             Text("Motivation level")
                 .font(.caption)
                 .kerning(1.5)
                 .textCase(.uppercase)
                 .foregroundStyle(.secondary)
 
-            ZStack {
+            HStack(spacing: 14) {
                 ForEach(1...5, id: \.self) { level in
                     Circle()
-                        .strokeBorder(strokeColor(for: level), lineWidth: ringWidth(for: level))
-                        .frame(width: ringSize(for: level), height: ringSize(for: level))
+                        .fill(fillColor(for: level))
+                        .overlay(
+                            Circle()
+                                .strokeBorder(borderColor(for: level), lineWidth: 1.5)
+                        )
+                        .frame(width: 38, height: 38)
                         .scaleEffect(scale(for: level))
-                        .opacity(opacity(for: level))
+                        .contentShape(Circle())
                         .animation(.spring(response: 0.32, dampingFraction: 0.72), value: selectedLevel)
                         .onTapGesture {
                             guard !submitted else { return }
@@ -28,7 +32,6 @@ struct MotivationSelector: View {
                         }
                 }
             }
-            .frame(width: 250, height: 250)
 
             if let selectedLevel {
                 Text(label(for: selectedLevel))
@@ -40,7 +43,7 @@ struct MotivationSelector: View {
             Button(action: submit) {
                 Text("Continue")
                     .font(.body.weight(.medium))
-                    .foregroundStyle(selectedLevel == nil ? .secondary : .primary)
+                    .foregroundStyle(softOrange.opacity(selectedLevel == nil ? 0.45 : 1.0))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color(.secondarySystemBackground))
@@ -57,32 +60,23 @@ struct MotivationSelector: View {
         onSelect(selectedLevel)
     }
 
-    private func ringSize(for level: Int) -> CGFloat {
-        CGFloat(70 + level * 34)
-    }
-
-    private func ringWidth(for level: Int) -> CGFloat {
-        selectedLevel == level ? 7 : 3
-    }
-
-    private func strokeColor(for level: Int) -> Color {
-        if let selectedLevel {
-            if level <= selectedLevel {
-                return Color.primary
-            }
-            return Color.primary.opacity(0.18)
-        }
-        return Color.primary.opacity(0.28)
-    }
-
-    private func opacity(for level: Int) -> Double {
-        guard let selectedLevel else { return 1.0 }
-        return level <= selectedLevel ? 1.0 : 0.55
+    private func fillColor(for level: Int) -> Color {
+        guard let selectedLevel else { return .clear }
+        return level <= selectedLevel ? .primary : .clear
     }
 
     private func scale(for level: Int) -> CGFloat {
         guard let selectedLevel else { return 1.0 }
         return selectedLevel == level ? 1.06 : 1.0
+    }
+
+    private func borderColor(for level: Int) -> Color {
+        guard let selectedLevel else { return Color.primary.opacity(0.28) }
+        return level <= selectedLevel ? Color.primary.opacity(0.0) : Color.primary.opacity(0.28)
+    }
+
+    private var softOrange: Color {
+        Color(hue: 0.06, saturation: 0.70, brightness: 0.92)
     }
 
     private func label(for level: Int) -> String {

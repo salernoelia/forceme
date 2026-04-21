@@ -337,11 +337,12 @@ struct FocusView: View {
 
                 // Live transcript or placeholder
                 Text(session.transcript.isEmpty ? hint : session.transcript)
-                    .font(.title3.weight(.regular))
+                    .font(.title3.weight(session.isProcessingSpeech ? .regular : .semibold))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(session.transcript.isEmpty ? .quaternary : .primary)
+                    .foregroundStyle(promptTextColor(isPlaceholder: session.transcript.isEmpty))
                     .padding(.horizontal, 36)
                     .animation(.easeInOut(duration: 0.2), value: session.transcript)
+                    .animation(.easeInOut(duration: 0.2), value: session.isProcessingSpeech)
 
                 recordingIndicator
             }
@@ -407,13 +408,14 @@ struct FocusView: View {
 
                 // Question
                 Text(session.currentQuestion)
-                    .font(.title3.weight(.regular))
+                    .font(.title3.weight(session.isProcessingSpeech ? .regular : .semibold))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(session.isProcessingSpeech ? Color(.secondaryLabel) : .primary)
                     .padding(.horizontal, 36)
                     .id(session.currentQuestion)   // forces re-render on question change
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                     .animation(.easeOut(duration: 0.3), value: session.currentQuestion)
+                    .animation(.easeInOut(duration: 0.2), value: session.isProcessingSpeech)
 
                 // Live answer — only shown when non-empty (cleared at start of each listen)
                 if !session.transcript.isEmpty {
@@ -527,6 +529,15 @@ struct FocusView: View {
             Button("Dismiss") { session.cancelError() }
                 .buttonStyle(.borderedProminent)
         }
+    }
+}
+
+private extension FocusView {
+    func promptTextColor(isPlaceholder: Bool) -> Color {
+        if isPlaceholder {
+            return session.isProcessingSpeech ? Color(.tertiaryLabel) : Color(.secondaryLabel)
+        }
+        return session.isProcessingSpeech ? Color(.secondaryLabel) : .primary
     }
 }
 

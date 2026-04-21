@@ -480,7 +480,7 @@ final class SessionEngine {
             self.pendingScore = nil
             return pendingScore
         }
-        await withCheckedContinuation { cont in
+        return await withCheckedContinuation { cont in
             scoreContinuation = cont
         }
     }
@@ -490,7 +490,7 @@ final class SessionEngine {
             self.pendingMotivation = nil
             return pendingMotivation
         }
-        await withCheckedContinuation { cont in
+        return await withCheckedContinuation { cont in
             motivationContinuation = cont
         }
     }
