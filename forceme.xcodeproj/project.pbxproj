@@ -25,7 +25,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0E32E5C82F96E1210035B67D /* forceme.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = forceme.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0E32E5C82F96E1210035B67D /* tallyvity.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tallyvity.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EA4389A2F96E1D30087FD93 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -83,7 +83,7 @@
 		0E32E5C92F96E1210035B67D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0E32E5C82F96E1210035B67D /* forceme.app */,
+				0E32E5C82F96E1210035B67D /* tallyvity.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -91,9 +91,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		0E32E5C72F96E1210035B67D /* forceme */ = {
+		0E32E5C72F96E1210035B67D /* tallyvity */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0E32E5D52F96E1220035B67D /* Build configuration list for PBXNativeTarget "forceme" */;
+			buildConfigurationList = 0E32E5D52F96E1220035B67D /* Build configuration list for PBXNativeTarget "tallyvity" */;
 			buildPhases = (
 				0E32E5C42F96E1210035B67D /* Sources */,
 				0E32E5C52F96E1210035B67D /* Frameworks */,
@@ -107,7 +107,7 @@
 			fileSystemSynchronizedGroups = (
 				0E32E5CA2F96E1210035B67D /* forceme */,
 			);
-			name = forceme;
+			name = tallyvity;
 			packageProductDependencies = (
 				0EA4389E2F96E5CA0087FD93 /* ArgmaxOSS */,
 				0EA438A02F96E5CA0087FD93 /* SpeakerKit */,
@@ -126,7 +126,7 @@
 				0E64F0342F970BF70059DD25 /* Transformers */,
 			);
 			productName = forceme;
-			productReference = 0E32E5C82F96E1210035B67D /* forceme.app */;
+			productReference = 0E32E5C82F96E1210035B67D /* tallyvity.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -165,7 +165,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				0E32E5C72F96E1210035B67D /* forceme */,
+				0E32E5C72F96E1210035B67D /* tallyvity */,
 			);
 		};
 /* End PBXProject section */
@@ -362,7 +362,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = elano.forceme.app;
+				PRODUCT_BUNDLE_IDENTIFIER = elano.tallyvity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -405,7 +405,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = elano.forceme.app;
+				PRODUCT_BUNDLE_IDENTIFIER = elano.tallyvity.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -433,7 +433,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0E32E5D52F96E1220035B67D /* Build configuration list for PBXNativeTarget "forceme" */ = {
+		0E32E5D52F96E1220035B67D /* Build configuration list for PBXNativeTarget "tallyvity" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0E32E5D62F96E1220035B67D /* Debug */,

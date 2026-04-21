@@ -16,10 +16,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>We need FaceID it to enforce user validation.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to attach photos to your messages.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We need FaceID it to enforce user validation.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need microphone access for user voice commands.</string>
 	<key>UIBackgroundModes</key>
