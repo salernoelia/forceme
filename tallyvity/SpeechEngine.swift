@@ -126,7 +126,8 @@ final class SpeechEngine {
     }
 
     private func makeWhisper(model: SettingsStore.WhisperModel) async throws -> WhisperKit {
-        let w = try await WhisperKit(WhisperKitConfig(model: model.rawValue))
+        let config = WhisperKitConfig(model: model.rawValue, prewarm: true)
+        let w = try await WhisperKit(config)
         try await w.loadModels()
         return w
     }

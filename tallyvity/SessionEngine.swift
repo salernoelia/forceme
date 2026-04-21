@@ -591,73 +591,86 @@ final class SessionEngine {
         guard !Task.isCancelled else { return }
         withAnimation { phase = .storing }
 
-        var blocker = ""
-        var intentNext = ""
+        let names = sessionUserName.isEmpty ? "there" : sessionUserName
 
-        await gemma.generate(prompt: GemmaPrompts.createArtifact(goal: currentGoal, loops: completedLoops, finalAnswers: finalAnswers))
-        let artifactJSON = gemma.output
-        if let data = artifactJSON.data(using: .utf8),
-           let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
-            blocker = dict["blocker"] ?? ""
-            intentNext = dict["intent_next"] ?? ""
-        }
+        // Start processing background tasks concurrently with session end audio
+        Task {
+            await gemma.generate(prompt: GemmaPrompts.createArtifact(goal: currentGoal, loops: completedLoops, finalAnswers: finalAnswers))
+            let artifactJSON = gemma.output
+            
+            var blocker = ""
+            var intentNext = ""
+            if let data = artifactJSON.data(using: .utf8),
+               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+                blocker = dict["blocker"] ?? ""
+                intentNext = dict["intent_next"] ?? ""
+            }
 
-        let name = sessionUserName.isEmpty ? "there" : sessionUserName
+            await gemma.generate(prompt: GemmaPrompts.closingSentence(
+                name: names, goal: currentGoal, loops: completedLoops,
+                blocker: blocker, intentNext: intentNext
+            ))
+            var closing = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        await gemma.generate(prompt: GemmaPrompts.closingSentence(
-            name: name, goal: currentGoal, loops: completedLoops,
-            blocker: blocker, intentNext: intentNext
-        ))
-        var closing = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let exclamationsCount = closing.filter { $0 == "!" }.count
-        if exclamationsCount >= 2 {
-            closing = ""
-        } else {
-            let prefixes = ["Well done", "Great job", "Amazing", "Fantastic", "You did", "Excellent work"]
-            for prefix in prefixes {
-                if closing.lowercased().hasPrefix(prefix.lowercased()) {
-                    let start = closing.index(closing.startIndex, offsetBy: prefix.count)
-                    var remainder = closing[start...]
-                    while remainder.hasPrefix(",") || remainder.hasPrefix(" ") {
-                        remainder.removeFirst()
+            // Clean up closing sentence (keep existing logic)
+            let exclamationsCount = closing.filter { $0 == "!" }.count
+            if exclamationsCount >= 2 {
+                closing = ""
+            } else {
+                let prefixes = ["Well done", "Great job", "Amazing", "Fantastic", "You did", "Excellent work"]
+                for prefix in prefixes {
+                    if closing.lowercased().hasPrefix(prefix.lowercased()) {
+                        let start = closing.index(closing.startIndex, offsetBy: prefix.count)
+                        var remainder = closing[start...]
+                        while remainder.hasPrefix(",") || remainder.hasPrefix(" ") {
+                            remainder.removeFirst()
+                        }
+                        if let firstChar = remainder.first {
+                            closing = String(firstChar).uppercased() + String(remainder.dropFirst())
+                        } else {
+                            closing = ""
+                        }
+                        break
                     }
-                    if let firstChar = remainder.first {
-                        closing = String(firstChar).uppercased() + String(remainder.dropFirst())
-                    } else {
-                        closing = ""
-                    }
-                    break
                 }
             }
+
+            let artifact = SessionArtifact(
+                id: UUID().uuidString,
+                date: Date(),
+                goal: currentGoal,
+                motivationLevel: sessionMotivationLevel,
+                score: Double(completedLoops.map(\.score).reduce(0, +)) / Double(max(completedLoops.count, 1)),
+                blocker: blocker,
+                intentNext: intentNext,
+                loopsCompleted: completedLoops.count,
+                closingSentence: closing,
+                finalAnswers: finalAnswers
+            )
+            
+            // Save in background
+            Task.detached(priority: .background) {
+                SessionStore.shared.save(artifact)
+                SessionStore.shared.clearCheckpoint()
+            }
+
+            // Sync back to UI when ready
+            await MainActor.run {
+                withAnimation { 
+                    self.finalArtifact = artifact
+                    self.phase = .sessionReport
+                }
+            }
+            
+            if !closing.isEmpty { await say(closing) }
         }
 
-        let artifact = SessionArtifact(
-            id: UUID().uuidString,
-            date: Date(),
-            goal: currentGoal,
-            motivationLevel: sessionMotivationLevel,
-            score: Double(completedLoops.map(\.score).reduce(0, +)) / Double(max(completedLoops.count, 1)),
-            blocker: blocker,
-            intentNext: intentNext,
-            loopsCompleted: completedLoops.count,
-            closingSentence: closing,
-            finalAnswers: finalAnswers
-        )
-        store.save(artifact)
-        store.clearCheckpoint()
-        withAnimation { finalArtifact = artifact }
-
+        // Play feedback immediately
         await sayFixed(cue: "session_done_prompt", fallback: selectVoiceLine(
             cue: "session_done",
             fallback: sessionDonePresets,
             replacements: ["goal": currentGoal]
         ))
-        try? await Task.sleep(for: .seconds(1))
-        if !closing.isEmpty { await say(closing) }
-
-        guard !Task.isCancelled else { return }
-        withAnimation { phase = .sessionReport }
     }
 
     // MARK: - Timer
@@ -873,20 +886,35 @@ final class SessionEngine {
 
     private func persistCheckpoint(userName: String = "") {
         guard phase != .idle, phase != .sessionReport else { return }
-        store.saveCheckpoint(.init(
-            userName: userName,
-            phaseRaw: phaseCheckpointTag(phase),
-            currentGoal: currentGoal,
-            completedLoops: completedLoops,
-            currentLoopAnswers: currentLoopAnswers,
-            currentLoopNumber: currentLoopNumber,
-            motivationLevel: sessionMotivationLevel,
-            totalLoops: totalLoops,
-            workDuration: workDuration,
-            shortBreakDuration: shortBreakDuration,
-            longBreakDuration: longBreakDuration,
-            savedAt: Date()
-        ))
+        let currentLoops = completedLoops
+        let currentAnswers = currentLoopAnswers
+        let currentNumber = currentLoopNumber
+        let goal = currentGoal
+        let motivation = sessionMotivationLevel
+        let total = totalLoops
+        let work = workDuration
+        let short = shortBreakDuration
+        let long = longBreakDuration
+        let currentPhase = phase
+
+        let phaseTag = phaseCheckpointTag(currentPhase)
+
+        Task.detached(priority: .background) {
+            SessionStore.shared.saveCheckpoint(.init(
+                userName: userName,
+                phaseRaw: phaseTag,
+                currentGoal: goal,
+                completedLoops: currentLoops,
+                currentLoopAnswers: currentAnswers,
+                currentLoopNumber: currentNumber,
+                motivationLevel: motivation,
+                totalLoops: total,
+                workDuration: work,
+                shortBreakDuration: short,
+                longBreakDuration: long,
+                savedAt: Date()
+            ))
+        }
     }
 
     private func mainLoop() async {
