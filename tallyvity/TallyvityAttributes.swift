@@ -9,5 +9,6 @@ struct TallyvityAttributes: ActivityAttributes {
     }
 
     var goal: String
+    var shortGoal: String
     var totalLoops: Int
 }

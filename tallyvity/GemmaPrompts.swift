@@ -81,4 +81,13 @@ enum GemmaPrompts {
         - If evidence is too weak, output exactly SKIP.
         """
     }
+
+    static func shortTitle(goal: String) -> String {
+        """
+        Convert this goal into a very short, punchy work title (max 15 characters).
+        No punctuation. No filler.
+        Goal: "\(goal)"
+        Output only the title.
+        """
+    }
 }

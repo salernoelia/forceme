@@ -41,34 +41,35 @@ struct TallyvityWidgetLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("GOAL")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.secondary)
                         Text(context.attributes.goal)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
                     }
                     .padding(.leading, 12)
-                    .padding(.top, 4)
+                    .padding(.top, 10)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 2) {
+                    VStack(alignment: .trailing, spacing: 4) {
                         Text(context.state.isWork ? "FOCUS" : "BREAK")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(context.state.isWork ? .orange : .cyan)
                         
-                        HStack(spacing: 6) {
+                        HStack(spacing: 8) {
                             Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
-                                .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                                .font(.title3)
                             Text(context.state.endDate, style: .timer)
                                 .font(.title3.weight(.bold).monospacedDigit())
                         }
+                        .foregroundStyle(context.state.isWork ? .orange : .cyan)
                     }
                     .padding(.trailing, 12)
-                    .padding(.top, 4)
+                    .padding(.top, 10)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
@@ -83,14 +84,18 @@ struct TallyvityWidgetLiveActivity: Widget {
                 }
 
             } compactLeading: {
-                Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
-                    .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                Text(context.attributes.shortGoal)
                     .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.leading, 4)
             } compactTrailing: {
-                Text(context.state.endDate, style: .timer)
-                    .font(.caption2.weight(.bold).monospacedDigit())
-                    .foregroundStyle(context.state.isWork ? .orange : .cyan)
-                    .frame(minWidth: 32)
+                HStack(spacing: 4) {
+                    Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
+                    Text(context.state.endDate, style: .timer)
+                        .monospacedDigit()
+                }
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(context.state.isWork ? .orange : .cyan)
             } minimal: {
                 Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
                     .foregroundStyle(context.state.isWork ? .orange : .cyan)
@@ -102,7 +107,7 @@ struct TallyvityWidgetLiveActivity: Widget {
 
 extension TallyvityAttributes {
     fileprivate static var preview: TallyvityAttributes {
-        TallyvityAttributes(goal: "Write the proposal", totalLoops: 4)
+        TallyvityAttributes(goal: "Write the proposal", shortGoal: "Proposal", totalLoops: 4)
     }
 }
 

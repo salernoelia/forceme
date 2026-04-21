@@ -66,6 +66,7 @@ final class SessionEngine {
     private(set) var timerProgress: Double = 0
     private(set) var timerElapsed: TimeInterval = 0
     private(set) var currentGoal: String = ""
+    private(set) var shortGoal: String = "Work"
     private(set) var memoryRecallText: String? = nil
     private(set) var isRecording: Bool = false
     private(set) var transcript: String = ""
@@ -397,6 +398,12 @@ final class SessionEngine {
                     if qs.count >= 3 {
                         prerenderedQuestions = Array(qs.prefix(3))
                     }
+                }
+                Task { [weak self] in
+                    guard let self else { return }
+                    await gemma.generate(prompt: GemmaPrompts.shortTitle(goal: currentGoal))
+                    let output = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !output.isEmpty { self.shortGoal = output }
                 }
 
                 // 2. Photo baseline
@@ -955,7 +962,7 @@ final class SessionEngine {
             return
         }
         endLiveActivity()
-        let attributes = TallyvityAttributes(goal: currentGoal, totalLoops: totalLoops)
+        let attributes = TallyvityAttributes(goal: currentGoal, shortGoal: shortGoal, totalLoops: totalLoops)
         let state = TallyvityAttributes.ContentState(
             endDate: Date().addingTimeInterval(duration),
             isWork: isWork,
