@@ -205,9 +205,14 @@ struct FocusView: View {
     private var motivationView: some View {
         VStack(spacing: 40) {
             Spacer()
-            MotivationSelector { level in
-                session.submitMotivation(level)
-            }
+            MotivationSelector(
+                onSelect: { level in
+                    session.submitMotivation(level)
+                },
+                onTapAdjust: {
+                    session.playRateCue()
+                }
+            )
             Spacer()
         }
     }

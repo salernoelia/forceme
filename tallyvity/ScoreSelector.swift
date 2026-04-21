@@ -53,6 +53,8 @@ struct ScoreSelector: View {
     private func tap(_ i: Int) {
         animationTask?.cancel()
         selected = i
+        submitted = true
+        onSelect(i)
         animationTask = Task { @MainActor in
             for j in 0..<i {
                 if Task.isCancelled { return }
@@ -69,11 +71,6 @@ struct ScoreSelector: View {
                     setScale(1.0, at: j)
                 }
             }
-
-            try? await Task.sleep(for: .seconds(0.21))
-            if Task.isCancelled { return }
-            submitted = true
-            onSelect(i)
         }
     }
 

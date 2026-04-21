@@ -668,20 +668,22 @@ final class SessionEngine {
         }
         try? speech.startRecording()
 
+        let silenceThreshold: TimeInterval = 1.0
+        let silenceLevel: Float = 0.01
         let deadline = Date().addingTimeInterval(maxDuration)
         var silentStart: Date? = nil
         while !Task.isCancelled && !recordingStopped && Date() < deadline {
             if let loudness = speech.currentInputLevel {
-                if loudness < 0.007 {
+                if loudness < silenceLevel {
                     if silentStart == nil { silentStart = Date() }
-                    if let silentStart, Date().timeIntervalSince(silentStart) >= 2.2 {
+                    if let silentStart, Date().timeIntervalSince(silentStart) >= silenceThreshold {
                         recordingStopped = true
                     }
                 } else {
                     silentStart = nil
                 }
             }
-            try? await Task.sleep(for: .milliseconds(100))
+            try? await Task.sleep(for: .milliseconds(60))
         }
 
         withAnimation { isRecording = false }

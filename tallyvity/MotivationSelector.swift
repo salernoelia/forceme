@@ -2,9 +2,11 @@ import SwiftUI
 
 struct MotivationSelector: View {
     var onSelect: (Int) -> Void
+    var onTapAdjust: (() -> Void)? = nil
 
     @State private var selectedLevel: Int?
     @State private var submitted = false
+    @State private var animationTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 30) {
@@ -28,7 +30,8 @@ struct MotivationSelector: View {
                         .animation(.spring(response: 0.32, dampingFraction: 0.72), value: selectedLevel)
                         .onTapGesture {
                             guard !submitted else { return }
-                            selectedLevel = level
+                            onTapAdjust?()
+                            animateSelection(level)
                         }
                 }
             }
@@ -39,25 +42,25 @@ struct MotivationSelector: View {
                     .foregroundStyle(.tertiary)
                     .transition(.opacity)
             }
-
-            Button(action: submit) {
-                Text("Continue")
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(softOrange.opacity(selectedLevel == nil ? 0.45 : 1.0))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(selectedLevel == nil || submitted)
-            .padding(.horizontal, 10)
+        }
+        .onDisappear {
+            animationTask?.cancel()
+            animationTask = nil
         }
     }
 
-    private func submit() {
-        guard let selectedLevel else { return }
-        submitted = true
-        onSelect(selectedLevel)
+    private func animateSelection(_ level: Int) {
+        animationTask?.cancel()
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+            selectedLevel = level
+        }
+
+        animationTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.18))
+            if Task.isCancelled { return }
+            submitted = true
+            onSelect(level)
+        }
     }
 
     private func fillColor(for level: Int) -> Color {
@@ -73,10 +76,6 @@ struct MotivationSelector: View {
     private func borderColor(for level: Int) -> Color {
         guard let selectedLevel else { return Color.primary.opacity(0.28) }
         return level <= selectedLevel ? Color.primary.opacity(0.0) : Color.primary.opacity(0.28)
-    }
-
-    private var softOrange: Color {
-        Color(hue: 0.06, saturation: 0.70, brightness: 0.92)
     }
 
     private func label(for level: Int) -> String {
