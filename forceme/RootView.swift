@@ -2,19 +2,24 @@ import SwiftUI
 
 struct RootView: View {
     @State private var engine = SpeechEngine()
+    @State private var gemma = GemmaEngine()
     @State private var settings = SettingsStore()
-    @State private var selectedTab: AppTab = .demo
+    @State private var selectedTab: AppTab = .voice
 
-    enum AppTab { case demo, settings }
+    enum AppTab { case voice, llm, settings }
 
     var body: some View {
         TabView(selection: $selectedTab) {
             VoiceLoopView(engine: engine, settings: settings)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .tabItem { Label("Demo", systemImage: "mic.fill") }
-                .tag(AppTab.demo)
+                .tabItem { Label("Voice", systemImage: "mic.fill") }
+                .tag(AppTab.voice)
 
-            SettingsView(engine: engine, settings: settings, onSave: { selectedTab = .demo })
+            LLMDemoView(gemma: gemma)
+                .tabItem { Label("Gemma", systemImage: "brain") }
+                .tag(AppTab.llm)
+
+            SettingsView(engine: engine, gemma: gemma, settings: settings, onSave: { selectedTab = .voice })
                 .tabItem { Label("Settings", systemImage: "gearshape") }
                 .tag(AppTab.settings)
         }
