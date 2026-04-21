@@ -38,7 +38,7 @@ final class SpeechEngine {
     private var recordingURL: URL?
 
     private var currentModel: SettingsStore.WhisperModel = .small
-    private var currentVoice: SettingsStore.Voice = .aiden
+    private var currentVoice: SettingsStore.Voice = .ryan
 
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
@@ -191,7 +191,20 @@ final class SpeechEngine {
 
     func cancelError() { state = .idle }
 
+    func stopAll() {
+        recorder?.stop()
+        recorder = nil
+        cuePlayer?.stop()
+        cuePlayer = nil
+        let session = AVAudioSession.sharedInstance()
+        try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        if state == .recording || state == .speaking || state == .transcribing {
+            state = .idle
+        }
+    }
+
     func speak(text: String) async {
+        stopAll()
         guard let tts else { return }
         do {
             let session = AVAudioSession.sharedInstance()
@@ -222,6 +235,7 @@ final class SpeechEngine {
 
     @discardableResult
     func playCue(named name: String) -> Bool {
+        stopAll()
         let voiceDir = currentVoice.rawValue.lowercased()
         let extensions = ["m4a", "wav"]
         var candidates: [URL?] = []
@@ -229,6 +243,9 @@ final class SpeechEngine {
         for ext in extensions {
             candidates += [
                 Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "sfx"),
+                Bundle.main.url(forResource: "\(voiceDir)_\(name)", withExtension: ext, subdirectory: "Audio/\(voiceDir)"),
+                Bundle.main.url(forResource: "\(voiceDir)_\(name)", withExtension: ext, subdirectory: voiceDir),
+                Bundle.main.url(forResource: "\(voiceDir)_\(name)", withExtension: ext),
                 Bundle.main.url(forResource: name, withExtension: ext, subdirectory: "Audio/\(voiceDir)"),
                 Bundle.main.url(forResource: name, withExtension: ext, subdirectory: voiceDir),
                 Bundle.main.url(forResource: name, withExtension: ext)
@@ -318,13 +335,13 @@ extension SettingsStore.Voice {
         switch self {
         case .ryan:    "ryan"
         case .aiden:   "aiden"
-        case .onoAnna: "ono-anna"
+        case .onoAnna: "ono_anna"
         case .sohee:   "sohee"
         case .eric:    "eric"
         case .dylan:   "dylan"
         case .serena:  "serena"
         case .vivian:  "vivian"
-        case .uncleFu: "uncle-fu"
+        case .uncleFu: "uncle_fu"
         }
     }
 }

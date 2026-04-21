@@ -11,6 +11,7 @@ struct FocusView: View {
     @State private var breakMinutes = 5
     @State private var loopCount = 4
     @State private var breakAmbientShift = false
+    @State private var showEndAlert = false
 
     var body: some View {
         ZStack {
@@ -30,6 +31,16 @@ struct FocusView: View {
         }
         .task {
             session.resumeSessionIfAvailable(userName: settings.userName)
+        }
+        .confirmationDialog(
+            "End Session?",
+            isPresented: $showEndAlert,
+            titleVisibility: .visible
+        ) {
+            Button("End Session", role: .destructive) { session.cancelSession() }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will stop the current timer and end your progress.")
         }
     }
 
@@ -51,11 +62,15 @@ struct FocusView: View {
             captureView(
                 title: "Say your goal",
                 hint: "What are you working on?",
-                showStop: !session.usesAutoStopCapture
+                showStop: false,
+                canRetry: false
             )
 
         case .photoBaseline:
             photoPromptView(isBaseline: true)
+
+        case .sessionReady:
+            sessionReadyView
 
         case .backgroundPrep(let loop):
             workView(loopNumber: loop)
@@ -64,7 +79,7 @@ struct FocusView: View {
             workView(loopNumber: loop)
 
         case .roundEnd:
-            transitionView(text: "Good.")
+            transitionView(text: "Good.", showContinue: true)
 
         case .photoDelta:
             photoPromptView(isBaseline: false)
@@ -77,7 +92,7 @@ struct FocusView: View {
                 .transition(.opacity)
 
         case .storing:
-            transitionView(text: "Storing…")
+            transitionView(text: "Storing…", showContinue: false)
 
         case .breakTime(let loop):
             breakView(loopNumber: loop)
@@ -145,36 +160,38 @@ struct FocusView: View {
     }
 
     private var timePickers: some View {
-        HStack(spacing: 0) {
-            RotaryTimePicker(
-                value: $focusMinutes,
-                values: Array(stride(from: 5, through: 90, by: 5)),
-                label: "Focus"
-            )
-            .frame(maxWidth: .infinity)
+        VStack(spacing: 16) {
+            HStack(spacing: 0) {
+                RotaryTimePicker(
+                    value: $focusMinutes,
+                    values: Array(stride(from: 5, through: 90, by: 5)),
+                    label: "Focus"
+                )
+                .frame(maxWidth: .infinity)
 
-            Divider()
-                .frame(height: 120)
+                Divider()
+                    .frame(height: 120)
 
-            RotaryTimePicker(
-                value: $breakMinutes,
-                values: Array(stride(from: 1, through: 30, by: 1)),
-                label: "Break"
-            )
-            .frame(maxWidth: .infinity)
+                RotaryTimePicker(
+                    value: $breakMinutes,
+                    values: Array(stride(from: 5, through: 30, by: 1)),
+                    label: "Break"
+                )
+                .frame(maxWidth: .infinity)
 
-            Divider()
-                .frame(height: 120)
+                Divider()
+                    .frame(height: 120)
 
-            RotaryTimePicker(
-                value: $loopCount,
-                values: Array(1...6),
-                label: "Loops",
-                unit: "amount"
-            )
-            .frame(maxWidth: .infinity)
+                RotaryTimePicker(
+                    value: $loopCount,
+                    values: Array(1...6),
+                    label: "Loops",
+                    unit: "amount"
+                )
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
     }
 
     private func lastSessionPill(artifact: SessionArtifact) -> some View {
@@ -228,6 +245,8 @@ struct FocusView: View {
                 }
             )
             Spacer()
+            sessionControls(canSkip: false)
+                .padding(.bottom, 48)
         }
     }
 
@@ -243,6 +262,8 @@ struct FocusView: View {
                 }
             )
             Spacer()
+            sessionControls(canSkip: false)
+                .padding(.bottom, 48)
         }
     }
 
@@ -377,7 +398,7 @@ struct FocusView: View {
 
     private func sessionControls(canSkip: Bool) -> some View {
         HStack(spacing: 32) {
-            Button(action: { session.cancelSession() }) {
+            Button(action: { showEndAlert = true }) {
                 Text("End")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
@@ -395,7 +416,7 @@ struct FocusView: View {
 
     // MARK: - Capture (goal / score)
 
-    private func captureView(title: String, hint: String, showStop: Bool) -> some View {
+    private func captureView(title: String, hint: String, showStop: Bool, canRetry: Bool = false) -> some View {
         VStack(spacing: 0) {
             Spacer()
 
@@ -420,7 +441,30 @@ struct FocusView: View {
 
             Spacer()
 
-            if showStop && session.isRecording {
+            if canRetry {
+                HStack(spacing: 24) {
+                    Button(action: session.retryGoal) {
+                        Text("Retry")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(Capsule())
+                    }
+                    Button(action: session.startNow) {
+                        Text("Start now")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(Capsule())
+                    }
+                }
+                .transition(.opacity)
+                .padding(.bottom, 52)
+            } else if showStop && session.isRecording {
                 Button(action: session.stopListening) {
                     Text("Done")
                         .font(.subheadline.weight(.medium))
@@ -433,6 +477,9 @@ struct FocusView: View {
                 .transition(.opacity)
                 .padding(.bottom, 52)
             }
+
+            sessionControls(canSkip: false)
+                .padding(.bottom, 48)
         }
     }
 
@@ -443,6 +490,7 @@ struct FocusView: View {
             }
         }
         .frame(height: 36)
+        .padding(.bottom, 20)
         .animation(.easeInOut(duration: 0.2), value: session.isRecording)
     }
 
@@ -521,49 +569,120 @@ struct FocusView: View {
         }
     }
 
-    // MARK: - Photo prompt
+    // MARK: - Photo
 
     private func photoPromptView(isBaseline: Bool) -> some View {
-        VStack(spacing: 28) {
-            Spacer()
-
-            VStack(spacing: 12) {
-                Text(isBaseline ? "Optional" : "Before you go")
-                    .font(.caption)
-                    .kerning(1.5)
-                    .foregroundStyle(.secondary)
+        VStack(spacing: 0) {
+            // Goal anchor
+            VStack(spacing: 6) {
+                Text("Goal")
+                    .font(.system(size: 10, weight: .medium))
+                    .kerning(1.6)
+                    .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
-
-                Text(isBaseline
-                    ? "Share a photo of what you are working on?"
-                    : "Share a photo of your work"
-                )
-                .font(.title3)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
+                Text(session.currentGoal)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 36)
             }
+            .padding(.top, 56)
 
-            HStack(spacing: 16) {
-                Button(action: { showCamera = true }) {
-                    Label("Photo", systemImage: "camera")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+            Spacer()
+
+            VStack(spacing: 28) {
+                VStack(spacing: 12) {
+                    Text(isBaseline ? "Optional" : "Before you go")
+                        .font(.caption)
+                        .kerning(1.5)
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    Text(isBaseline
+                        ? "Share a photo of what you are working on?"
+                        : "Share a photo of your work"
+                    )
+                    .font(.title3)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
                 }
 
-                Button(action: session.skipPhoto) {
-                    Text("Skip")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                HStack(spacing: 16) {
+                    Button(action: { showCamera = true }) {
+                        Label("Photo", systemImage: "camera")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    Button(action: session.skipPhoto) {
+                        Text("Skip")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                    }
                 }
             }
 
             Spacer()
+
+            if isBaseline {
+                Button(action: session.backToGoal) {
+                    Text("← Edit Goal")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                        .padding(.bottom, 52)
+                }
+            }
+        }
+    }
+    
+    private var sessionReadyView: some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 32) {
+                VStack(spacing: 12) {
+                    Text("Ready")
+                        .font(.system(size: 11, weight: .medium))
+                        .kerning(1.6)
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+                    
+                    Text(session.currentGoal)
+                        .font(.title2.weight(.light))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                }
+                
+                Button(action: {
+                    session.confirmStartSession()
+                }) {
+                    HStack(spacing: 12) {
+                        Text("Start Session")
+                            .font(.headline.weight(.medium))
+                    }
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 18)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(Capsule())
+                }
+            }
+            
+            Spacer()
+            
+            Button(action: session.backToGoal) {
+                Text("Edit Goal")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.bottom, 52)
         }
     }
 
@@ -579,10 +698,24 @@ struct FocusView: View {
         }
     }
 
-    private func transitionView(text: String) -> some View {
-        Text(text)
-            .font(.system(size: 22, weight: .light))
-            .foregroundStyle(.secondary)
+    private func transitionView(text: String, showContinue: Bool) -> some View {
+        VStack(spacing: 32) {
+            Text(text)
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(.secondary)
+
+            if showContinue {
+                Button(action: { session.skipBreakAndResume() }) {
+                    Text("Continue")
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                }
+            }
+        }
     }
 
     // MARK: - Error

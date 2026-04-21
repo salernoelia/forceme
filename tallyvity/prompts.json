@@ -42,7 +42,7 @@
     "extension_added": "Extension added. Ten more minutes.",
     "starter_continue": {
       "cue": "starter_continue_prompt",
-      "fallback": "Do you want to continue into the full flow? Say yes or no."
+      "fallback": "Do you want to continue into the full flow?"
     },
     "round_end": {
       "cue": "round_end_prompt",

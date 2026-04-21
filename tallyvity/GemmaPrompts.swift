@@ -9,12 +9,6 @@ enum GemmaPrompts {
         Output exactly 3 short review questions for end of session. One per line. No numbering. No extra text.
         Questions must be factual and neutral, not encouraging.
         Questions must NOT start with "What", "Hm", or "Um".
-
-        Tell me what you actually finished.
-        Name the main thing that got in the way.
-        One change you'd make next time.
-
-        Output only those three lines verbatim.
         """
     }
 

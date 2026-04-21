@@ -2,6 +2,7 @@ import json
 import os
 import argparse
 import subprocess
+import shutil
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Batch generate audio from prompts.json")
@@ -15,15 +16,15 @@ def main():
     args = parse_args()
     
     VOICES = {
-        "Ryan": "Ryan",
-        "Aiden": "Aiden",
-        "OnoAnna": "Ono-Anna",
-        "Sohee": "Sohee",
-        "Eric": "Eric",
-        "Dylan": "Dylan",
-        "Serena": "Serena",
-        "Vivian": "Vivian",
-        "UncleFu": "Uncle-Fu"
+        "ryan": "ryan",
+        "aiden": "aiden",
+        "onoAnna": "ono_anna",
+        "sohee": "sohee",
+        "eric": "eric",
+        "dylan": "dylan",
+        "serena": "serena",
+        "vivian": "vivian",
+        "uncleFu": "uncle_fu"
     }
 
     if not os.path.exists(args.json):
@@ -42,13 +43,18 @@ def main():
             fallback = value.get("fallback") or value.get("text")
             if cue and fallback:
                 to_generate.append((cue, fallback))
-        elif isinstance(value, str) and key == "extension_added":
+        elif isinstance(value, str):
+             # Handle simple string prompts like extension_added
              to_generate.append((key, value))
 
     speakers = [args.speaker] if args.speaker else VOICES.keys()
 
     for speaker_key in speakers:
-        speaker_name = VOICES.get(speaker_key, speaker_key)
+        speaker_name = VOICES.get(speaker_key)
+        if not speaker_name:
+            print(f"Warning: Unknown speaker key '{speaker_key}'. Skipping.")
+            continue
+            
         # Create a speaker-specific subdirectory to keep things organized
         speaker_dir = os.path.join(args.output_dir, speaker_key.lower())
         os.makedirs(speaker_dir, exist_ok=True)
@@ -56,8 +62,9 @@ def main():
         print(f"\n--- Generating for Speaker: {speaker_name} ---")
         
         for cue, text in to_generate:
-            output_path = os.path.join(speaker_dir, f"{cue}.m4a")
-            temp_wav = os.path.join(speaker_dir, f"{cue}_temp.wav")
+            filename = f"{speaker_key.lower()}_{cue}.m4a"
+            output_path = os.path.join(speaker_dir, filename)
+            temp_wav = os.path.join(speaker_dir, f"{speaker_key.lower()}_{cue}_temp.wav")
             
             if os.path.exists(output_path) and not args.force:
                 print(f"Skipping existing: {output_path}")
@@ -66,8 +73,13 @@ def main():
             print(f"Generating '{cue}': {text}")
             
             # 1. Generate temp WAV
+            uv_path = "uv"
+            local_uv = os.path.expanduser("~/.local/bin/uv")
+            if not shutil.which("uv") and os.path.exists(local_uv):
+                uv_path = local_uv
+
             cmd_gen = [
-                "uv", "run", "voice_prompt_generator/worker.py",
+                uv_path, "run", "voice_prompt_generator/worker.py",
                 "--speaker", speaker_name,
                 "--text", text,
                 "--output", temp_wav
@@ -77,7 +89,6 @@ def main():
                 subprocess.run(cmd_gen, check=True, capture_output=True)
                 
                 # 2. Convert to M4A (AAC) using afconvert (macOS native)
-                # -f m4af = M4A file format, -d aac = AAC data format
                 cmd_conv = ["afconvert", "-f", "m4af", "-d", "aac", temp_wav, output_path]
                 subprocess.run(cmd_conv, check=True)
                 
@@ -87,7 +98,8 @@ def main():
                     
                 print(f"Saved compressed M4A to {output_path}")
             except subprocess.CalledProcessError as e:
-                print(f"Failed to generate {cue} for {speaker_name}: {e.stderr.decode() if e.stderr else str(e)}")
+                stderr = e.stderr.decode() if e.stderr else str(e)
+                print(f"Failed to generate {cue} for {speaker_name}: {stderr}")
             except Exception as e:
                 print(f"Error during conversion: {e}")
 

@@ -13,6 +13,12 @@ final class SessionEngine {
         case cancelled
     }
 
+    private enum SessionFlowAction {
+        case continueNext
+        case skipBreakAndResume
+        case finish
+    }
+
     enum Phase: Equatable {
         case idle
         case motivationSelection
@@ -28,6 +34,7 @@ final class SessionEngine {
         case storing
         case breakTime(loopNumber: Int)
         case nextSessionCountdown(loopNumber: Int)
+        case sessionReady
         case sessionReport
         case error(String)
 
@@ -35,7 +42,7 @@ final class SessionEngine {
             switch (lhs, rhs) {
               case (.idle, .idle), (.motivationSelection, .motivationSelection), (.preparingAudio, .preparingAudio), (.goalCapture, .goalCapture), (.photoBaseline, .photoBaseline),
                  (.roundEnd, .roundEnd), (.photoDelta, .photoDelta),
-                 (.storing, .storing), (.sessionReport, .sessionReport): return true
+                 (.storing, .storing), (.sessionReady, .sessionReady), (.sessionReport, .sessionReport): return true
             case (.backgroundPrep(let a), .backgroundPrep(let b)): return a == b
             case (.workActive(let a), .workActive(let b)): return a == b
             case (.qaPlayback(let q1, let l1), .qaPlayback(let q2, let l2)): return q1 == q2 && l1 == l2
@@ -87,7 +94,12 @@ final class SessionEngine {
     private var pendingMotivation: Int?
     private var sessionMotivationLevel: Int?
     private var needsStarterDecision: Bool = false
+    private var flowExtensionRequested: Bool = false
+    private var wantsToRetryGoal: Bool = false
+    private var wantsToGoBackToGoal: Bool = false
+    private var wantsToStartNow: Bool = false
     private var baselinePhotoSummary: String? = nil
+    private var startSessionContinuation: CheckedContinuation<Void, Never>?
     private var workStartPrompts: [String] { PromptStore.shared.presets(for: "work_start") }
     private var goalPromptPresets: [String] { PromptStore.shared.presets(for: "goal_capture") }
     private var photoPromptPresets: [String] { PromptStore.shared.presets(for: "photo_baseline") }
@@ -127,6 +139,7 @@ final class SessionEngine {
         sessionTask = nil
         timerTask?.cancel()
         timerTask = nil
+        speech.stopAll()
 
         // Force-stop any active capture loop and release waiting UI continuations.
         recordingStopped = true
@@ -150,7 +163,13 @@ final class SessionEngine {
         photoSkipped = false
         timerSkipped = false
         needsStarterDecision = false
+        flowExtensionRequested = false
+        wantsToRetryGoal = false
+        wantsToGoBackToGoal = false
+        wantsToStartNow = false
         baselinePhotoSummary = nil
+        startSessionContinuation?.resume()
+        startSessionContinuation = nil
 
         updateScreenAwake(enabled: false)
         store.clearCheckpoint()
@@ -205,6 +224,41 @@ final class SessionEngine {
 
     func cancelError() {
         withAnimation { phase = .idle }
+    }
+
+    func skipBreakAndResume() {
+        flowExtensionRequested = true
+        recordingStopped = true
+        photoSkipped = true
+        timerSkipped = true
+        if let cont = scoreContinuation {
+            scoreContinuation = nil
+            cont.resume(returning: 4)
+        }
+    }
+
+    func retryGoal() {
+        wantsToRetryGoal = true
+        recordingStopped = true
+    }
+
+    func startNow() {
+        wantsToStartNow = true
+        recordingStopped = true
+        photoSkipped = true
+        timerSkipped = true
+    }
+
+    func backToGoal() {
+        wantsToGoBackToGoal = true
+        recordingStopped = true
+        photoSkipped = true
+        timerSkipped = true
+    }
+
+    func confirmStartSession() {
+        startSessionContinuation?.resume()
+        startSessionContinuation = nil
     }
 
     func playRateCue() {
@@ -276,91 +330,129 @@ final class SessionEngine {
             workDuration = 5 * 60
         }
 
-        // Goal capture
-        withAnimation { phase = .goalCapture }
-        await sayFixed(cue: "goal_prompt", fallback: PromptStore.shared.fallback(for: "goal_capture"))
-        guard !Task.isCancelled else { return }
-        let goal = await listen(maxDuration: 30)
-        guard !Task.isCancelled, !goal.isEmpty else {
-            withAnimation { phase = .idle }
-            return
-        }
-        currentGoal = goal
+        // Setup loop: Goal -> Photo
+        var setupFinished = false
+        while !setupFinished && !Task.isCancelled {
+            wantsToGoBackToGoal = false
+            
+            // 1. Goal capture
+            var goalAccepted = false
+            while !goalAccepted && !Task.isCancelled {
+                wantsToRetryGoal = false
+                wantsToStartNow = false
+                withAnimation { phase = .goalCapture }
+                await sayFixed(cue: "goal_prompt", fallback: PromptStore.shared.fallback(for: "goal_capture"))
+                guard !Task.isCancelled else { return }
+                
+                let captured = await listen(maxDuration: 30, silenceThreshold: 1.5)
+                guard !Task.isCancelled else { return }
+                
+                if wantsToRetryGoal { continue }
+                
+                currentGoal = captured.isEmpty ? "Focus session" : captured
+                
+                let waitStart = Date()
+                while Date().timeIntervalSince(waitStart) < 2.0 && !Task.isCancelled {
+                    if wantsToRetryGoal || wantsToStartNow { break }
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+                if wantsToRetryGoal { continue }
+                goalAccepted = true
+            }
+            
+            guard !Task.isCancelled else { return }
+            
+            if wantsToStartNow {
+                setupFinished = true
+                continue
+            }
 
-        Task { [weak self] in
-            await self?.generateDynamicVoiceLines(for: goal)
-        }
-
-        // Memory recall (non-blocking, runs concurrently on main actor)
-        Task { [weak self] in
-            guard let self else { return }
-            let relevant = store.findRelevant(for: goal)
-            if let prompt = GemmaPrompts.memoryRecall(name: userName, goal: goal, relevant: relevant) {
-                await gemma.generate(prompt: prompt)
-                let output = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
-                if output != "SKIP" && !output.isEmpty {
-                    withAnimation { self.memoryRecallText = output }
+            // Start background generations (non-blocking)
+            Task { [weak self] in
+                await self?.generateDynamicVoiceLines(for: self?.currentGoal ?? "")
+            }
+            Task { [weak self] in
+                guard let self else { return }
+                let relevant = store.findRelevant(for: currentGoal)
+                if let prompt = GemmaPrompts.memoryRecall(name: userName, goal: currentGoal, relevant: relevant) {
+                    await gemma.generate(prompt: prompt)
+                    let output = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if output != "SKIP" && !output.isEmpty {
+                        withAnimation { self.memoryRecallText = output }
+                    }
                 }
             }
-        }
-
-        // Background Gemma question generation
-        Task { [weak self] in
-            guard let self else { return }
-            await gemma.generate(prompt: GemmaPrompts.generateQuestions(goal: goal))
-            let output = gemma.output
-            let qs = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-            if qs.count >= 3 {
-                prerenderedQuestions = Array(qs.prefix(3))
+            Task { [weak self] in
+                guard let self else { return }
+                await gemma.generate(prompt: GemmaPrompts.generateQuestions(goal: currentGoal))
+                let output = gemma.output
+                let qs = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                if qs.count >= 3 {
+                    prerenderedQuestions = Array(qs.prefix(3))
+                }
             }
+
+            // 2. Photo baseline
+            await sayFixed(cue: "photo_baseline_prompt", fallback: selectVoiceLine(
+                cue: "photo_baseline",
+                fallback: photoPromptPresets,
+                replacements: ["goal": currentGoal]
+            ))
+            withAnimation { phase = .photoBaseline }
+            
+            // Wait for photo or skip or BACK
+            let deadline = Date().addingTimeInterval(15)
+            pendingPhoto = nil
+            photoSkipped = false
+            while !Task.isCancelled && !photoSkipped && !wantsToGoBackToGoal && Date() < deadline {
+                if let photo = pendingPhoto {
+                    await gemma.generate(image: photo, prompt: "Describe visible workspace facts only in one sentence.")
+                    let summary = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                    baselinePhotoSummary = summary.isEmpty ? nil : summary
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            
+            guard !Task.isCancelled else { return }
+            if wantsToGoBackToGoal { continue }
+            
+            setupFinished = true
         }
 
-        // Photo baseline
-        await sayFixed(cue: "photo_baseline_prompt", fallback: selectVoiceLine(
-            cue: "photo_baseline",
-            fallback: photoPromptPresets,
-            replacements: ["goal": currentGoal]
-        ))
-        withAnimation { phase = .photoBaseline }
-        if let baselinePhoto = await waitForPhoto(timeout: 10) {
-            await gemma.generate(image: baselinePhoto, prompt: "Describe visible workspace facts only in one sentence.")
-            let summary = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
-            baselinePhotoSummary = summary.isEmpty ? nil : summary
+        guard !Task.isCancelled else { return }
+
+        // Start manual session trigger
+        withAnimation { phase = .sessionReady }
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            startSessionContinuation = cont
         }
+
         guard !Task.isCancelled else { return }
 
         // Begin work loop
         persistCheckpoint(userName: userName)
-        await runLoop()
+        await mainLoop()
     }
 
-    private func runLoop() async {
-        guard !Task.isCancelled else { return }
+    private func runLoop() async -> SessionFlowAction {
+        guard !Task.isCancelled else { return .finish }
 
         withAnimation { phase = .backgroundPrep(loopNumber: currentLoopNumber) }
         persistCheckpoint()
 
         sayFixedNonBlocking(cue: "work_start_prompt", fallback: workStartPrompt())
         updateScreenAwake(enabled: true)
-        phase = .workActive(loopNumber: currentLoopNumber)
+        withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
         persistCheckpoint()
         let timerResult = await runTimer(duration: workDuration)
-        guard !Task.isCancelled else { updateScreenAwake(enabled: false); return }
-        guard timerResult != .cancelled else { updateScreenAwake(enabled: false); return }
+        guard !Task.isCancelled else { updateScreenAwake(enabled: false); return .finish }
+        guard timerResult != .cancelled else { updateScreenAwake(enabled: false); return .finish }
 
         withAnimation { phase = .roundEnd }
-        let shouldExtend = timerResult == .completed ? await waitForFlowExtensionDecision() : false
-        if shouldExtend {
-            workDuration = 10 * 60
-            withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
-            await say(PromptStore.shared.fallback(for: "extension_added"))
-            _ = await runTimer(duration: workDuration)
-            withAnimation { phase = .roundEnd }
-        }
-
         haptic.impactOccurred(intensity: 0.7)
         if timerResult == .completed || timerResult == .skipped {
-            speech.playCue(named: "end")
+            await speech.playCueAndWait(named: "end")
         }
         updateScreenAwake(enabled: false)
 
@@ -369,34 +461,34 @@ final class SessionEngine {
             await sayFixed(cue: "starter_continue_prompt", fallback: PromptStore.shared.fallback(for: "starter_continue"))
             let decision = await listen(maxDuration: 6).lowercased()
             if decision.contains("no") || decision.contains("stop") {
-                await finishSession()
-                return
+                return .finish
             }
             workDuration = 25 * 60
         }
 
-        await runRoundEnd()
+        return await runRoundEnd()
     }
 
-    private func runRoundEnd() async {
-        guard !Task.isCancelled else { return }
+    private func runRoundEnd() async -> SessionFlowAction {
+        guard !Task.isCancelled else { return .finish }
 
         withAnimation { phase = .roundEnd }
         persistCheckpoint()
-        try? await Task.sleep(for: .seconds(2))
-        await sayFixed(cue: "round_end_prompt", fallback: selectVoiceLine(
-            cue: "round_end",
-            fallback: roundEndPresets,
-            replacements: ["goal": currentGoal]
-        ))
-        guard !Task.isCancelled else { return }
+        
+        let pauseStart = Date()
+        while Date().timeIntervalSince(pauseStart) < 2.0 {
+            if flowExtensionRequested { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        if let action = checkFlowExtensionAction() { return action }
 
         withAnimation { phase = .photoDelta }
         persistCheckpoint()
         pendingPhoto = nil
         photoSkipped = false
         let deltaPhoto = await waitForPhoto(timeout: 8)
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return .finish }
+        if let action = checkFlowExtensionAction() { return action }
 
         if let baselinePhotoSummary, let deltaPhoto {
             await gemma.generate(image: deltaPhoto, prompt: "Describe visible workspace facts only in one sentence.")
@@ -416,15 +508,17 @@ final class SessionEngine {
 
         currentLoopAnswers = []
         for i in 0..<3 {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return .finish }
             withAnimation { phase = .qaPlayback(questionIndex: i, loopNumber: currentLoopNumber) }
             withAnimation { currentQuestion = prerenderedQuestions[i] }
             await say(prerenderedQuestions[i])
-            let answer = await listen(maxDuration: 30)
+            let answer = await listen(maxDuration: 30, silenceThreshold: 3.0)
             currentLoopAnswers.append(answer)
         }
 
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return .finish }
+        if let action = checkFlowExtensionAction() { return action }
+        
         withAnimation { phase = .selfScore(loopNumber: currentLoopNumber) }
         sayFixedNonBlocking(cue: "self_score_prompt", fallback: selectVoiceLine(
             cue: "self_score",
@@ -432,6 +526,11 @@ final class SessionEngine {
             replacements: ["goal": currentGoal]
         ))
         let score = await waitForScore()
+        
+        // Let the selection animation complete before transitioning
+        try? await Task.sleep(for: .seconds(0.8))
+        
+        if let action = checkFlowExtensionAction() { return action }
 
         withAnimation {
             phase = .storing
@@ -443,37 +542,72 @@ final class SessionEngine {
             ))
         }
 
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return .finish }
+        if let action = checkFlowExtensionAction() { return action }
 
-        if completedLoops.count >= totalLoops {
-            await finishSession()
-        } else {
-            let breakDuration = completedLoops.count >= max(1, totalLoops - 1) ? longBreakDuration : shortBreakDuration
-            let breakMinutes = max(1, Int(round(breakDuration / 60)))
-            await sayFixed(cue: "break_start_prompt", fallback: selectVoiceLine(
-                cue: "break_start",
-                fallback: breakPromptPresets,
-                replacements: ["breakMinutes": "\(breakMinutes) minutes", "goal": currentGoal]
-            ))
-            currentLoopNumber += 1
+        let isLong = completedLoops.count >= totalLoops
+        let breakDuration = isLong ? longBreakDuration : shortBreakDuration
+        let breakMinutes = max(1, Int(round(breakDuration / 60)))
+        
+        await sayFixed(cue: "break_start_prompt", fallback: selectVoiceLine(
+            cue: "break_start",
+            fallback: breakPromptPresets,
+            replacements: ["breakMinutes": "\(breakMinutes) minutes", "goal": currentGoal]
+        ))
+        
+        if !isLong { 
+            currentLoopNumber += 1 
             persistCheckpoint()
-            await runBreak()
+            return .continueNext
+        } else {
+            persistCheckpoint()
+            return .finish
         }
     }
 
-    private func runBreak() async {
-        guard !Task.isCancelled else { return }
+    private func checkFlowExtensionAction() -> SessionFlowAction? {
+        if flowExtensionRequested {
+            flowExtensionRequested = false
+            // If user extending from a point where current loop wasn't added yet, add it with default score
+            let recordExists = completedLoops.count >= currentLoopNumber
+            if !recordExists && currentLoopNumber > 0 {
+                 completedLoops.append(LoopRecord(
+                    goalText: currentGoal,
+                    answers: ["Skipped round review (Flow extension)"],
+                    score: 4,
+                    scoreReason: ""
+                ))
+            }
+            
+            if completedLoops.count >= totalLoops { totalLoops += 1 }
+            currentLoopNumber += 1
+            persistCheckpoint()
+            return .skipBreakAndResume
+        }
+        return nil
+    }
 
-        let isLong = completedLoops.count >= max(1, totalLoops - 1)
+    private func runBreak() async -> SessionFlowAction {
+        guard !Task.isCancelled else { return .finish }
+
+        let isLong = completedLoops.count >= totalLoops
         let duration = isLong ? longBreakDuration : shortBreakDuration
 
-        guard duration > 0 else { await runLoop(); return }
+        guard duration > 0 else {
+            return isLong ? .finish : .continueNext
+        }
 
         withAnimation { phase = .breakTime(loopNumber: currentLoopNumber) }
         persistCheckpoint()
         sayFixedNonBlocking(cue: "break_recovery_prompt", fallback: breakRecoveryPresets.randomElement() ?? "")
         await runTimer(duration: duration)
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return .finish }
+        
+        if let action = checkFlowExtensionAction() { return action }
+
+        if isLong {
+            return .finish
+        }
 
         // Transition screen before next loop
         withAnimation { phase = .nextSessionCountdown(loopNumber: currentLoopNumber) }
@@ -484,9 +618,9 @@ final class SessionEngine {
             replacements: ["sessionNumber": "\(currentLoopNumber)", "goal": currentGoal]
         ))
         try? await Task.sleep(for: .seconds(2))
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled else { return .finish }
 
-        await runLoop()
+        return .continueNext
     }
 
     private func finishSession() async {
@@ -615,7 +749,7 @@ final class SessionEngine {
         }
     }
 
-    private func listen(maxDuration: TimeInterval) async -> String {
+    private func listen(maxDuration: TimeInterval, silenceThreshold: TimeInterval = 2.5) async -> String {
         recordingStopped = false
         withAnimation {
             isRecording = true
@@ -623,8 +757,7 @@ final class SessionEngine {
         }
         try? speech.startRecording()
 
-        let silenceThreshold: TimeInterval = 1.0
-        let silenceLevel: Float = 0.01
+        let silenceLevel: Float = 0.04
         let deadline = Date().addingTimeInterval(maxDuration)
         var silentStart: Date? = nil
         while !Task.isCancelled && !recordingStopped && Date() < deadline {
@@ -752,11 +885,6 @@ final class SessionEngine {
         }
     }
 
-    private func waitForFlowExtensionDecision() async -> Bool {
-        let decision = await listen(maxDuration: 2.2).lowercased()
-        return decision.contains("keep going") || decision.contains("extend") || decision.contains("more time")
-    }
-
     private func persistCheckpoint(userName: String = "") {
         guard phase != .idle, phase != .sessionReport else { return }
         store.saveCheckpoint(.init(
@@ -775,6 +903,20 @@ final class SessionEngine {
         ))
     }
 
+    private func mainLoop() async {
+        while !Task.isCancelled {
+            let action = await runLoop()
+            if action == .finish { break }
+            
+            if action == .continueNext {
+                let breakAction = await runBreak()
+                if breakAction == .finish { break }
+            }
+        }
+        guard !Task.isCancelled else { return }
+        await finishSession()
+    }
+
     private func resumeSession(from checkpoint: SessionStore.SessionCheckpoint) async {
         completedLoops = checkpoint.completedLoops
         currentLoopAnswers = checkpoint.currentLoopAnswers
@@ -787,9 +929,14 @@ final class SessionEngine {
         longBreakDuration = checkpoint.longBreakDuration
 
         if checkpoint.phaseRaw == "break" {
-            await runBreak()
+            let result = await runBreak()
+            if result != .finish {
+                await mainLoop()
+            } else {
+                await finishSession()
+            }
         } else {
-            await runLoop()
+            await mainLoop()
         }
     }
 
