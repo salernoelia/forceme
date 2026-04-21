@@ -948,13 +948,12 @@ final class SessionEngine {
     // MARK: - Live Activity
 
     private func startLiveActivity(duration: TimeInterval, isWork: Bool, loopNumber: Int) {
-        Task {
-            let settings = await UNUserNotificationCenter.current().notificationSettings()
-            if settings.authorizationStatus == .notDetermined {
-                try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
-            }
+        let info = ActivityAuthorizationInfo()
+        print("[LiveActivity] areActivitiesEnabled=\(info.areActivitiesEnabled) frequentUpdatesEnabled=\(info.frequentPushesEnabled)")
+        guard info.areActivitiesEnabled else {
+            print("[LiveActivity] blocked — user may have disabled in Settings > [App] > Live Activities")
+            return
         }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         endLiveActivity()
         let attributes = TallyvityAttributes(goal: currentGoal, totalLoops: totalLoops)
         let state = TallyvityAttributes.ContentState(
@@ -962,10 +961,21 @@ final class SessionEngine {
             isWork: isWork,
             loopNumber: loopNumber
         )
-        liveActivity = try? Activity.request(
-            attributes: attributes,
-            content: .init(state: state, staleDate: Date().addingTimeInterval(duration + 60))
+        let content = ActivityContent(
+            state: state,
+            staleDate: Date().addingTimeInterval(duration + 60),
+            relevanceScore: 100
         )
+        do {
+            liveActivity = try Activity.request(
+                attributes: attributes,
+                content: content,
+                pushType: nil
+            )
+            print("[LiveActivity] started id=\(liveActivity?.id ?? "nil") state=\(String(describing: liveActivity?.activityState))")
+        } catch {
+            print("[LiveActivity] request failed: \(error)")
+        }
     }
 
     private func updateLiveActivity(remainingDuration: TimeInterval, isWork: Bool, loopNumber: Int) {

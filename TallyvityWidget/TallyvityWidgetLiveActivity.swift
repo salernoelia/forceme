@@ -37,7 +37,6 @@ struct TallyvityWidgetLiveActivity: Widget {
                 }
             }
             .padding(16)
-            .activityBackgroundTint(Color(.systemBackground))
 
         } dynamicIsland: { context in
             DynamicIsland {
@@ -45,31 +44,24 @@ struct TallyvityWidgetLiveActivity: Widget {
                     Label {
                         Text(context.attributes.goal)
                             .font(.caption.weight(.medium))
-                            .lineLimit(2)
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
                     } icon: {
                         Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.6))
+                            .font(.caption)
                     }
+                    .padding(.leading, 4)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
                     Text(context.state.endDate, style: .timer)
-                        .font(.title2.weight(.light).monospacedDigit())
-                        .foregroundStyle(.primary)
+                        .font(.callout.weight(.medium).monospacedDigit())
+                        .foregroundStyle(.white)
                         .multilineTextAlignment(.trailing)
+                        .padding(.trailing, 4)
                 }
 
-                DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        Text(context.state.isWork ? "Focus session" : "Break time")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("Loop \(context.state.loopNumber) of \(context.attributes.totalLoops)")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
             } compactLeading: {
                 Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
                     .foregroundStyle(.secondary)
