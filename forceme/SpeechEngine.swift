@@ -23,13 +23,21 @@ final class SpeechEngine {
     private(set) var transcript: String = ""
     private(set) var downloadProgress: Double? = nil
 
+    var loadingMessage: String {
+        switch state {
+        case .requestingPermission: return "Requesting microphone…"
+        case .loadingModels(let msg): return msg
+        default: return ""
+        }
+    }
+
     private var whisper: WhisperKit?
     private var tts: TTSKit?
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
 
     private var currentModel: SettingsStore.WhisperModel = .small
-    private var currentVoice: SettingsStore.Voice = .dylan
+    private var currentVoice: SettingsStore.Voice = .ryan
 
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
@@ -146,6 +154,30 @@ final class SpeechEngine {
     }
 
     func cancelError() { state = .idle }
+
+    func speak(text: String) async {
+        guard let tts else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            try? session.setCategory(.playback, mode: .default)
+            try? session.setActive(true)
+            try await tts.play(text: text, voice: currentVoice.ttsVoice, language: "english")
+            try? configureAudioSession()
+        } catch {}
+    }
+
+    func transcribeRecording() async -> String {
+        recorder?.stop()
+        recorder = nil
+        guard let url = recordingURL, let whisper else { return "" }
+        do {
+            let results = try await whisper.transcribe(audioPath: url.path)
+            let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            try? FileManager.default.removeItem(at: url)
+            return text
+        } catch { return "" }
+    }
 
     func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }

@@ -1,30 +1,56 @@
 import SwiftUI
 
 struct RootView: View {
-    @State private var engine = SpeechEngine()
+    @State private var speech = SpeechEngine()
     @State private var gemma = GemmaEngine()
     @State private var settings = SettingsStore()
-    @State private var selectedTab: AppTab = .voice
-
-    enum AppTab { case voice, llm, settings }
+    @State private var session: SessionEngine?
+    @State private var isBooting = true
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            VoiceLoopView(engine: engine, settings: settings)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .tabItem { Label("Voice", systemImage: "mic.fill") }
-                .tag(AppTab.voice)
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
 
-            LLMDemoView(gemma: gemma)
-                .tabItem { Label("Gemma", systemImage: "brain") }
-                .tag(AppTab.llm)
-
-            SettingsView(engine: engine, gemma: gemma, settings: settings, onSave: { selectedTab = .voice })
-                .tabItem { Label("Settings", systemImage: "gearshape") }
-                .tag(AppTab.settings)
+            if isBooting {
+                bootView
+            } else if !settings.onboardingComplete {
+                OnboardingView(speech: speech, settings: settings) {
+                    session = SessionEngine(speech: speech, gemma: gemma)
+                }
+                .transition(.opacity)
+            } else if let session {
+                FocusView(session: session, gemma: gemma, settings: settings)
+                    .transition(.opacity)
+            }
         }
-        .task { await engine.requestPermissionAndLoad(settings: settings) }
-        .task { if gemma.wasDownloaded { await gemma.load() } }
+        .animation(.easeInOut(duration: 0.4), value: isBooting)
+        .animation(.easeInOut(duration: 0.4), value: settings.onboardingComplete)
+        .task {
+            await speech.requestPermissionAndLoad(settings: settings)
+            if gemma.wasDownloaded {
+                Task { await gemma.load() }
+            }
+            withAnimation {
+                isBooting = false
+                if settings.onboardingComplete {
+                    session = SessionEngine(speech: speech, gemma: gemma)
+                }
+            }
+        }
+    }
+
+    private var bootView: some View {
+        VStack(spacing: 20) {
+            Text("Tallivity")
+                .font(.system(size: 28, weight: .light, design: .rounded))
+                .foregroundStyle(.primary)
+            ProgressView()
+                .scaleEffect(1.2)
+            Text(speech.loadingMessage)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .animation(.easeInOut, value: speech.loadingMessage)
+        }
     }
 }
 

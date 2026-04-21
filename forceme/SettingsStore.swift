@@ -49,10 +49,20 @@ final class SettingsStore {
         didSet { defaults.set(voice.rawValue, forKey: "voice") }
     }
 
+    var userName: String {
+        didSet { defaults.set(userName, forKey: "userName") }
+    }
+
+    var onboardingComplete: Bool {
+        didSet { defaults.set(onboardingComplete, forKey: "onboardingComplete") }
+    }
+
     init() {
         let m = defaults.string(forKey: "whisperModel") ?? ""
         whisperModel = WhisperModel(rawValue: m) ?? .small
         let v = defaults.string(forKey: "voice") ?? ""
         voice = Voice(rawValue: v) ?? .dylan
+        userName = defaults.string(forKey: "userName") ?? ""
+        onboardingComplete = defaults.bool(forKey: "onboardingComplete")
     }
 }

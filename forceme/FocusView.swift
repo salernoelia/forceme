@@ -1,0 +1,470 @@
+import SwiftUI
+
+struct FocusView: View {
+    var session: SessionEngine
+    var gemma: GemmaEngine
+    var settings: SettingsStore
+
+    @State private var showSettings = false
+    @State private var showCamera = false
+    @State private var focusMinutes = 25
+    @State private var breakMinutes = 5
+
+    var body: some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+            phaseContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(gemma: gemma, settings: settings)
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraPickerView { image in
+                session.setBaselinePhoto(image)
+                showCamera = false
+            }
+            .ignoresSafeArea()
+        }
+        .animation(.easeInOut(duration: 0.35), value: session.phase)
+    }
+
+    // MARK: - Phase routing
+
+    @ViewBuilder
+    private var phaseContent: some View {
+        switch session.phase {
+        case .idle:
+            idleView
+
+        case .goalCapture:
+            captureView(
+                title: "Say your goal",
+                hint: "What are you working on?",
+                showStop: true
+            )
+
+        case .photoBaseline:
+            photoPromptView(isBaseline: true)
+
+        case .backgroundPrep(let loop):
+            workView(loopNumber: loop)
+
+        case .workActive(let loop):
+            workView(loopNumber: loop)
+
+        case .roundEnd:
+            transitionView(text: "Good.")
+
+        case .photoDelta:
+            photoPromptView(isBaseline: false)
+
+        case .qaPlayback(let i, _):
+            qaView(questionIndex: i)
+
+        case .selfScore:
+            captureView(
+                title: "Score this round",
+                hint: "Say a number from 1 to 5",
+                showStop: true
+            )
+
+        case .storing:
+            transitionView(text: "Storing…")
+
+        case .breakTime(let loop):
+            breakView(loopNumber: loop)
+
+        case .sessionReport:
+            if let artifact = session.finalArtifact {
+                SessionReportView(
+                    loops: session.completedLoops,
+                    artifact: artifact,
+                    onDismiss: session.dismissReport
+                )
+            }
+
+        case .error(let msg):
+            errorView(message: msg)
+        }
+    }
+
+    // MARK: - Idle
+
+    private var idleView: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 20, weight: .light))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 16)
+
+            Spacer()
+
+            VStack(spacing: 44) {
+                VStack(spacing: 10) {
+                    Text("Tallivity")
+                        .font(.system(size: 34, weight: .light, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    if let recall = session.memoryRecallText {
+                        Text(recall)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                            .transition(.opacity)
+                    } else if let latest = SessionStore.shared.latest {
+                        lastSessionPill(artifact: latest)
+                    }
+                }
+
+                timePickers
+
+                startButton
+            }
+
+            Spacer()
+            Spacer()
+        }
+    }
+
+    private var timePickers: some View {
+        HStack(spacing: 0) {
+            RotaryTimePicker(
+                value: $focusMinutes,
+                values: Array(stride(from: 5, through: 90, by: 5)),
+                label: "Focus"
+            )
+            .frame(maxWidth: .infinity)
+
+            Divider()
+                .frame(height: 120)
+
+            RotaryTimePicker(
+                value: $breakMinutes,
+                values: Array(stride(from: 1, through: 30, by: 1)),
+                label: "Break"
+            )
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 24)
+    }
+
+    private func lastSessionPill(artifact: SessionArtifact) -> some View {
+        VStack(spacing: 4) {
+            Text("Last session")
+                .font(.caption2)
+                .kerning(1.2)
+                .foregroundStyle(.tertiary)
+                .textCase(.uppercase)
+            Text(artifact.goal)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(Capsule())
+    }
+
+    private var startButton: some View {
+        Button(action: {
+            session.workDuration = Double(focusMinutes) * 60
+            session.shortBreakDuration = Double(breakMinutes) * 60
+            session.longBreakDuration = Double(breakMinutes * 4) * 60
+            session.startSession(userName: settings.userName)
+        }) {
+            ZStack {
+                Circle()
+                    .fill(Color(.label))
+                    .frame(width: 72, height: 72)
+                Image(systemName: "play.fill")
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundStyle(Color(.systemBackground))
+                    .offset(x: 2)
+            }
+        }
+    }
+
+    // MARK: - Work timer
+
+    private func workView(loopNumber: Int) -> some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                loopDots(current: loopNumber)
+                    .padding(.top, 60)
+
+                Spacer()
+
+                TimerRingView(progress: session.timerProgress, isWork: true)
+                    .frame(width: 280, height: 280)
+
+                Spacer()
+
+                // Very subtle end-early affordance
+                Button(action: { session.cancelSession() }) {
+                    Text("End session")
+                        .font(.caption2)
+                        .foregroundStyle(Color(.systemGray4))
+                }
+                .padding(.bottom, 48)
+            }
+        }
+    }
+
+    private func loopDots(current: Int) -> some View {
+        HStack(spacing: 8) {
+            ForEach(1...SessionEngine.totalLoops, id: \.self) { i in
+                Circle()
+                    .fill(i <= session.completedLoops.count
+                          ? Color(.label)
+                          : (i == current ? Color(.label).opacity(0.5) : Color(.systemGray5))
+                    )
+                    .frame(width: 6, height: 6)
+            }
+        }
+    }
+
+    // MARK: - Break timer
+
+    private func breakView(loopNumber: Int) -> some View {
+        ZStack {
+            Color(.systemBackground).ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                loopDots(current: loopNumber)
+                    .padding(.top, 60)
+
+                Spacer()
+
+                TimerRingView(progress: session.timerProgress, isWork: false)
+                    .frame(width: 280, height: 280)
+
+                Text("Rest")
+                    .font(.system(size: 15, weight: .light))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 20)
+
+                Spacer()
+
+                Button(action: { session.cancelSession() }) {
+                    Text("End session")
+                        .font(.caption2)
+                        .foregroundStyle(Color(.systemGray4))
+                }
+                .padding(.bottom, 48)
+            }
+        }
+    }
+
+    // MARK: - Capture (goal / score)
+
+    private func captureView(title: String, hint: String, showStop: Bool) -> some View {
+        VStack(spacing: 40) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                Text(title.uppercased())
+                    .font(.caption)
+                    .kerning(1.5)
+                    .foregroundStyle(.secondary)
+
+                Text(session.transcript.isEmpty ? hint : session.transcript)
+                    .font(.title3)
+                    .fontWeight(.regular)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(session.transcript.isEmpty ? .tertiary : .primary)
+                    .padding(.horizontal, 32)
+                    .animation(.easeInOut, value: session.transcript)
+            }
+
+            recordingIndicator
+
+            if showStop && session.isRecording {
+                Button(action: session.stopListening) {
+                    Text("Done")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                }
+                .transition(.opacity)
+            }
+
+            Spacer()
+        }
+    }
+
+    private var recordingIndicator: some View {
+        ZStack {
+            if session.isRecording {
+                RecordingPulse()
+            } else {
+                Circle()
+                    .fill(Color(.systemGray5))
+                    .frame(width: 16, height: 16)
+            }
+        }
+        .animation(.easeInOut, value: session.isRecording)
+    }
+
+    // MARK: - Q&A
+
+    private func qaView(questionIndex: Int) -> some View {
+        VStack(spacing: 40) {
+            Spacer()
+
+            VStack(spacing: 16) {
+                Text("Question \(questionIndex + 1) of 3".uppercased())
+                    .font(.caption)
+                    .kerning(1.5)
+                    .foregroundStyle(.secondary)
+
+                Text(session.currentQuestion)
+                    .font(.title3)
+                    .fontWeight(.regular)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, 32)
+                    .animation(.easeInOut, value: session.currentQuestion)
+
+                if !session.transcript.isEmpty {
+                    Text(session.transcript)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                        .transition(.opacity)
+                }
+            }
+
+            recordingIndicator
+
+            if session.isRecording {
+                Button(action: session.stopListening) {
+                    Text("Next")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 10)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                }
+                .transition(.opacity)
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Photo prompt
+
+    private func photoPromptView(isBaseline: Bool) -> some View {
+        VStack(spacing: 28) {
+            Spacer()
+
+            VStack(spacing: 12) {
+                Text(isBaseline ? "Optional" : "Before you go")
+                    .font(.caption)
+                    .kerning(1.5)
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Text(isBaseline
+                    ? "Share a photo of where you are"
+                    : "Share a photo of your work"
+                )
+                .font(.title3)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            }
+
+            HStack(spacing: 16) {
+                Button(action: { showCamera = true }) {
+                    Label("Photo", systemImage: "camera")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                Button(action: session.skipPhoto) {
+                    Text("Skip")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                }
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Transition overlay
+
+    private func transitionView(text: String) -> some View {
+        Text(text)
+            .font(.system(size: 22, weight: .light))
+            .foregroundStyle(.secondary)
+    }
+
+    // MARK: - Error
+
+    private func errorView(message: String) -> some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Dismiss") { session.cancelError() }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+}
+
+// MARK: - Recording pulse animation
+
+struct RecordingPulse: View {
+    @State private var scale: CGFloat = 1.0
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.red.opacity(0.15))
+                .frame(width: 40, height: 40)
+                .scaleEffect(scale)
+                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: scale)
+
+            Circle()
+                .fill(Color.red)
+                .frame(width: 14, height: 14)
+        }
+        .onAppear { scale = 1.3 }
+    }
+}
+
+#Preview {
+    FocusView(
+        session: SessionEngine(speech: SpeechEngine(), gemma: GemmaEngine()),
+        gemma: GemmaEngine(),
+        settings: SettingsStore()
+    )
+}
