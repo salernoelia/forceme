@@ -7,7 +7,6 @@ struct ScoreSelector: View {
     @State private var selected: Int? = nil
     @State private var submitted = false
 
-
     var body: some View {
         VStack(spacing: 36) {
             Text("Rate your output")
@@ -26,7 +25,8 @@ struct ScoreSelector: View {
                                 .strokeBorder(Color.primary.opacity(filled ? 0 : 0.28), lineWidth: 1.5)
                         )
                         .frame(width: 38, height: 38)
-
+                        .scaleEffect(selected == i ? 1.18 : 1.0)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.6), value: selected)
                         .onTapGesture {
                             guard !submitted else { return }
                             tap(i)
@@ -45,21 +45,19 @@ struct ScoreSelector: View {
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                .transition(.opacity.combined(with: .scale(scale: 0.88)))
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selected)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: selected)
-
     }
 
     private func tap(_ i: Int) {
-        selected = i
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.6)) {
+            selected = i
+        }
         submitted = true
         onSelect(i)
-
     }
-
-
 
     private func label(_ score: Int) -> String {
         switch score {

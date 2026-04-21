@@ -526,7 +526,7 @@ final class SessionEngine {
         let breakDuration = isLong ? longBreakDuration : shortBreakDuration
         let breakMinutes = max(1, Int(round(breakDuration / 60)))
 
-        await sayFixed(cue: "break_start_prompt", fallback: selectVoiceLine(
+        sayFixedNonBlocking(cue: "break_start_prompt", fallback: selectVoiceLine(
             cue: "break_start",
             fallback: breakPromptPresets,
             replacements: ["breakMinutes": "\(breakMinutes) minutes", "goal": currentGoal]

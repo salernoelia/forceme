@@ -88,8 +88,13 @@ final class SpeechEngine {
         if loadTask == nil {
             startPreloading(model: currentModel, voice: currentVoice)
         }
-
         await loadTask?.value
+
+        if isReady { return true }
+
+        whisper = nil
+        tts = nil
+        await loadModels(model: currentModel, voice: currentVoice)
         return isReady
     }
 
@@ -126,14 +131,25 @@ final class SpeechEngine {
     }
 
     private func makeWhisper(model: SettingsStore.WhisperModel) async throws -> WhisperKit {
-        let config = WhisperKitConfig(model: model.rawValue, prewarm: true)
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let whisperBase = docs.appendingPathComponent("whisper_models", isDirectory: true)
+        try? FileManager.default.createDirectory(at: whisperBase, withIntermediateDirectories: true)
+        let config = WhisperKitConfig(
+            model: model.rawValue,
+            downloadBase: whisperBase,
+            prewarm: true
+        )
         let w = try await WhisperKit(config)
         try await w.loadModels()
         return w
     }
 
     private func makeTTS(voice: SettingsStore.Voice) async throws -> TTSKit {
-        return try await TTSKit(TTSKitConfig(model: .qwen3TTS_0_6b))
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let ttsBase = docs.appendingPathComponent("tts_models", isDirectory: true)
+        try? FileManager.default.createDirectory(at: ttsBase, withIntermediateDirectories: true)
+        let config = TTSKitConfig(model: .qwen3TTS_0_6b, downloadBase: ttsBase)
+        return try await TTSKit(config)
     }
 
     func startRecording() throws {
