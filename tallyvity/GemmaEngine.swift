@@ -85,10 +85,20 @@ final class GemmaEngine {
                 input: lmInput,
                 parameters: GenerateParameters(maxTokens: 512)
             )
+            var publishBuffer = ""
+            var lastPublish = Date()
             for await event in stream {
                 if case .chunk(let text) = event {
-                    output += text
+                    publishBuffer += text
+                    if Date().timeIntervalSince(lastPublish) >= 0.2 {
+                        output += publishBuffer
+                        publishBuffer = ""
+                        lastPublish = Date()
+                    }
                 }
+            }
+            if !publishBuffer.isEmpty {
+                output += publishBuffer
             }
             state = .ready
         } catch {

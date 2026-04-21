@@ -43,6 +43,14 @@ final class SpeechEngine {
     private var interruptionObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
 
+    var currentInputLevel: Float? {
+        guard let recorder else { return nil }
+        recorder.updateMeters()
+        let db = recorder.averagePower(forChannel: 0)
+        let linear = pow(10, db / 20)
+        return max(0, min(1, linear))
+    }
+
     var isReady: Bool {
         whisper != nil && tts != nil
     }
@@ -143,6 +151,7 @@ final class SpeechEngine {
             AVLinearPCMIsBigEndianKey: false
         ]
         recorder = try AVAudioRecorder(url: url, settings: settings)
+        recorder?.isMeteringEnabled = true
         recorder?.record()
         state = .recording
     }

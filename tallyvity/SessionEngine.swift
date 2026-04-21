@@ -84,6 +84,8 @@ final class SessionEngine {
     private var pendingScore: Int?
     private var pendingMotivation: Int?
     private var sessionMotivationLevel: Int?
+    private var needsStarterDecision: Bool = false
+    private var baselinePhotoSummary: String? = nil
     private let workStartPrompts: [String] = [
         "Gentle start. {minutes} for your goal.",
         "Settling in for {minutes}.",
@@ -163,10 +165,20 @@ final class SessionEngine {
         }
     }
 
+    func resumeSessionIfAvailable(userName: String) {
+        guard let checkpoint = store.loadCheckpoint() else { return }
+        guard checkpoint.userName == userName || checkpoint.userName.isEmpty || userName.isEmpty else { return }
+        sessionTask?.cancel()
+        sessionTask = Task { [weak self] in
+            await self?.resumeSession(from: checkpoint)
+        }
+    }
+
     func cancelSession() {
         sessionTask?.cancel()
         timerTask?.cancel()
-        UIApplication.shared.isIdleTimerDisabled = false
+        updateScreenAwake(enabled: false)
+        store.clearCheckpoint()
         withAnimation { phase = .idle }
     }
 
@@ -278,6 +290,12 @@ final class SessionEngine {
             "Name the main thing that got in the way.",
             "One change you'd make next time."
         ]
+        baselinePhotoSummary = nil
+        needsStarterDecision = motivation <= 2
+
+        if needsStarterDecision {
+            workDuration = 5 * 60
+        }
 
         // Goal capture
         withAnimation { phase = .goalCapture }
@@ -325,10 +343,15 @@ final class SessionEngine {
             replacements: ["goal": currentGoal]
         ))
         withAnimation { phase = .photoBaseline }
-        _ = await waitForPhoto(timeout: 10)
+        if let baselinePhoto = await waitForPhoto(timeout: 10) {
+            await gemma.generate(image: baselinePhoto, prompt: "Describe visible workspace facts only in one sentence.")
+            let summary = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            baselinePhotoSummary = summary.isEmpty ? nil : summary
+        }
         guard !Task.isCancelled else { return }
 
         // Begin work loop
+        persistCheckpoint(userName: userName)
         await runLoop()
     }
 
@@ -336,15 +359,37 @@ final class SessionEngine {
         guard !Task.isCancelled else { return }
 
         withAnimation { phase = .backgroundPrep(loopNumber: currentLoopNumber) }
+        persistCheckpoint()
 
         await say(workStartPrompt())
-        UIApplication.shared.isIdleTimerDisabled = true
+        updateScreenAwake(enabled: true)
         phase = .workActive(loopNumber: currentLoopNumber)
+        persistCheckpoint()
         await runTimer(duration: workDuration)
-        guard !Task.isCancelled else { UIApplication.shared.isIdleTimerDisabled = false; return }
+        guard !Task.isCancelled else { updateScreenAwake(enabled: false); return }
+
+        let shouldExtend = await waitForFlowExtensionDecision()
+        if shouldExtend {
+            workDuration = 10 * 60
+            withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
+            await say("Extension added. Ten more minutes.")
+            await runTimer(duration: workDuration)
+        }
 
         haptic.impactOccurred(intensity: 0.7)
-        UIApplication.shared.isIdleTimerDisabled = false
+        updateScreenAwake(enabled: false)
+
+        if needsStarterDecision {
+            needsStarterDecision = false
+            await say("Do you want to continue into the full flow? Say yes or no.")
+            let decision = await listen(maxDuration: 6).lowercased()
+            if decision.contains("no") || decision.contains("stop") {
+                await finishSession()
+                return
+            }
+            workDuration = 25 * 60
+        }
+
         await runRoundEnd()
     }
 
@@ -352,6 +397,8 @@ final class SessionEngine {
         guard !Task.isCancelled else { return }
 
         withAnimation { phase = .roundEnd }
+        persistCheckpoint()
+        try? await Task.sleep(for: .seconds(2))
         await say(selectVoiceLine(
             cue: "round_end",
             fallback: roundEndPresets,
@@ -360,10 +407,27 @@ final class SessionEngine {
         guard !Task.isCancelled else { return }
 
         withAnimation { phase = .photoDelta }
+        persistCheckpoint()
         pendingPhoto = nil
         photoSkipped = false
-        _ = await waitForPhoto(timeout: 8)
+        let deltaPhoto = await waitForPhoto(timeout: 8)
         guard !Task.isCancelled else { return }
+
+        if let baselinePhotoSummary, let deltaPhoto {
+            await gemma.generate(image: deltaPhoto, prompt: "Describe visible workspace facts only in one sentence.")
+            let deltaSummary = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !deltaSummary.isEmpty {
+                await gemma.generate(prompt: GemmaPrompts.factualPhotoDelta(
+                    goal: currentGoal,
+                    baselineDescription: baselinePhotoSummary,
+                    deltaDescription: deltaSummary
+                ))
+                let factual = gemma.output.trimmingCharacters(in: .whitespacesAndNewlines)
+                if factual != "SKIP" && !factual.isEmpty {
+                    await say(factual)
+                }
+            }
+        }
 
         currentLoopAnswers = []
         for i in 0..<3 {
@@ -406,6 +470,7 @@ final class SessionEngine {
                 replacements: ["breakMinutes": "\(breakLabel) minutes", "goal": currentGoal]
             ))
             currentLoopNumber += 1
+            persistCheckpoint()
             await runBreak()
         }
     }
@@ -419,11 +484,13 @@ final class SessionEngine {
         guard duration > 0 else { await runLoop(); return }
 
         withAnimation { phase = .breakTime(loopNumber: currentLoopNumber) }
+        persistCheckpoint()
         await runTimer(duration: duration)
         guard !Task.isCancelled else { return }
 
         // Transition screen before next loop
         withAnimation { phase = .nextSessionCountdown(loopNumber: currentLoopNumber) }
+        persistCheckpoint()
         await say(selectVoiceLine(
             cue: "next_session",
             fallback: nextSessionPromptPresets,
@@ -471,6 +538,7 @@ final class SessionEngine {
             closingSentence: closing
         )
         store.save(artifact)
+        store.clearCheckpoint()
         withAnimation { finalArtifact = artifact }
 
         await say(selectVoiceLine(
@@ -544,7 +612,18 @@ final class SessionEngine {
         try? speech.startRecording()
 
         let deadline = Date().addingTimeInterval(maxDuration)
+        var silentStart: Date? = nil
         while !Task.isCancelled && !recordingStopped && Date() < deadline {
+            if let loudness = speech.currentInputLevel {
+                if loudness < 0.010 {
+                    if silentStart == nil { silentStart = Date() }
+                    if let silentStart, Date().timeIntervalSince(silentStart) >= 1.4 {
+                        recordingStopped = true
+                    }
+                } else {
+                    silentStart = nil
+                }
+            }
             try? await Task.sleep(for: .milliseconds(100))
         }
 
@@ -657,5 +736,57 @@ final class SessionEngine {
         return await withCheckedContinuation { cont in
             motivationContinuation = cont
         }
+    }
+
+    private func waitForFlowExtensionDecision() async -> Bool {
+        await say("If you want extra time, say keep going in the next 30 seconds.")
+        let decision = await listen(maxDuration: 6).lowercased()
+        return decision.contains("keep going") || decision.contains("extend") || decision.contains("more time")
+    }
+
+    private func persistCheckpoint(userName: String = "") {
+        guard phase != .idle, phase != .sessionReport else { return }
+        store.saveCheckpoint(.init(
+            userName: userName,
+            phaseRaw: phaseCheckpointTag(phase),
+            currentGoal: currentGoal,
+            completedLoops: completedLoops,
+            currentLoopAnswers: currentLoopAnswers,
+            currentLoopNumber: currentLoopNumber,
+            motivationLevel: sessionMotivationLevel,
+            workDuration: workDuration,
+            shortBreakDuration: shortBreakDuration,
+            longBreakDuration: longBreakDuration,
+            savedAt: Date()
+        ))
+    }
+
+    private func resumeSession(from checkpoint: SessionStore.SessionCheckpoint) async {
+        completedLoops = checkpoint.completedLoops
+        currentLoopAnswers = checkpoint.currentLoopAnswers
+        currentLoopNumber = max(1, checkpoint.currentLoopNumber)
+        currentGoal = checkpoint.currentGoal
+        sessionMotivationLevel = checkpoint.motivationLevel
+        workDuration = checkpoint.workDuration
+        shortBreakDuration = checkpoint.shortBreakDuration
+        longBreakDuration = checkpoint.longBreakDuration
+
+        if checkpoint.phaseRaw == "break" {
+            await runBreak()
+        } else {
+            await runLoop()
+        }
+    }
+
+    private func phaseCheckpointTag(_ phase: Phase) -> String {
+        switch phase {
+        case .breakTime: return "break"
+        case .workActive, .backgroundPrep: return "work"
+        default: return "other"
+        }
+    }
+
+    private func updateScreenAwake(enabled: Bool) {
+        UIApplication.shared.isIdleTimerDisabled = enabled
     }
 }

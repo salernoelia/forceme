@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct forcemeApp: App {
+struct TallivityApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()

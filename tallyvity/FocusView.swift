@@ -26,6 +26,9 @@ struct FocusView: View {
             }
             .ignoresSafeArea()
         }
+        .task {
+            session.resumeSessionIfAvailable(userName: settings.userName)
+        }
     }
 
     // MARK: - Phase routing

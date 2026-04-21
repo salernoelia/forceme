@@ -38,6 +38,8 @@ enum GemmaPrompts {
         return """
         Write one factual closing sentence. No praise. No adjectives. No emotional framing. Specific facts only.
 
+        Name usage rule: use the user's name exactly once, only at the start.
+
         Name: \(name)
         Goal: \(goal)
         Loops: \(loops.count)
@@ -56,6 +58,8 @@ enum GemmaPrompts {
         return """
         Write one short memory recall sentence. Reference past session if relevant. No filler words.
 
+        Name usage rule: user name may appear at most once.
+
         User: \(name)
         Current goal: \(goal)
         Past sessions: \(history)
@@ -64,6 +68,22 @@ enum GemmaPrompts {
         If NOT relevant: output only the word SKIP
 
         Output only the sentence or SKIP.
+        """
+    }
+
+    static func factualPhotoDelta(goal: String, baselineDescription: String, deltaDescription: String) -> String {
+        """
+        Compare two neutral work-area descriptions for the same goal and produce one factual sentence only.
+
+        Goal: \(goal)
+        Baseline: \(baselineDescription)
+        Delta: \(deltaDescription)
+
+        Rules:
+        - Output one sentence only.
+        - Mention only concrete visible changes.
+        - No guessing, no motivation language, no advice.
+        - If evidence is too weak, output exactly SKIP.
         """
     }
 }
