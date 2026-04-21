@@ -9,6 +9,8 @@ struct FocusView: View {
     @State private var showCamera = false
     @State private var focusMinutes = 25
     @State private var breakMinutes = 5
+    @State private var loopCount = 4
+    @State private var breakAmbientShift = false
 
     var body: some View {
         ZStack {
@@ -160,6 +162,16 @@ struct FocusView: View {
                 label: "Break"
             )
             .frame(maxWidth: .infinity)
+
+            Divider()
+                .frame(height: 120)
+
+            RotaryTimePicker(
+                value: $loopCount,
+                values: Array(1...6),
+                label: "Loops"
+            )
+            .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 24)
     }
@@ -187,6 +199,7 @@ struct FocusView: View {
             session.workDuration = Double(focusMinutes) * 60
             session.shortBreakDuration = Double(breakMinutes) * 60
             session.longBreakDuration = Double(breakMinutes * 4) * 60
+            session.totalLoops = loopCount
             session.startSession(userName: settings.userName)
         }) {
             Text("Begin")
@@ -260,8 +273,9 @@ struct FocusView: View {
     }
 
     private func loopDots(current: Int) -> some View {
+        let loops = max(1, session.totalLoops)
         HStack(spacing: 8) {
-            ForEach(1...SessionEngine.totalLoops, id: \.self) { i in
+            ForEach(1...loops, id: \.self) { i in
                 Circle()
                     .fill(i <= session.completedLoops.count
                           ? Color(.label)
@@ -276,7 +290,7 @@ struct FocusView: View {
 
     private func breakView(loopNumber: Int) -> some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            breakAmbientBackground
 
             VStack(spacing: 0) {
                 loopDots(current: loopNumber)
@@ -300,6 +314,40 @@ struct FocusView: View {
 
                 sessionControls(canSkip: true)
                     .padding(.bottom, 48)
+            }
+        }
+    }
+
+    private var breakAmbientBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(.systemBackground), Color(.systemGray6)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Circle()
+                .fill(Color(.systemGray5).opacity(0.42))
+                .frame(width: 230, height: 230)
+                .blur(radius: 24)
+                .offset(
+                    x: breakAmbientShift ? -80 : 70,
+                    y: breakAmbientShift ? -150 : -40
+                )
+
+            Circle()
+                .fill(Color(.systemGray4).opacity(0.26))
+                .frame(width: 260, height: 260)
+                .blur(radius: 30)
+                .offset(
+                    x: breakAmbientShift ? 95 : -75,
+                    y: breakAmbientShift ? 120 : 170
+                )
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) {
+                breakAmbientShift.toggle()
             }
         }
     }

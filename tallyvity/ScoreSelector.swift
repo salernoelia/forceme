@@ -11,7 +11,7 @@ struct ScoreSelector: View {
 
     var body: some View {
         VStack(spacing: 36) {
-            Text("Score this round")
+            Text("Rate your output")
                 .font(.caption)
                 .kerning(1.5)
                 .textCase(.uppercase)

@@ -48,7 +48,7 @@ final class SessionEngine {
         }
     }
 
-    static let totalLoops = 4
+    var totalLoops: Int = 4
 
     var workDuration: TimeInterval = 25 * 60
     var shortBreakDuration: TimeInterval = 5 * 60
@@ -128,11 +128,16 @@ final class SessionEngine {
         "Great, pause and check progress on {goal}."
     ]
     private let scorePromptPresets: [String] = [
-        "How did this round feel, for {goal}?",
-        "Give this block a score for {goal}.",
-        "Quick score: how well did {goal} go?",
-        "Rate your progress on {goal} this round.",
-        "Pick a score for this step on {goal}."
+        "Rate your output this round, one to five.",
+        "Rate your output this round for {goal}.",
+        "Choose a one-to-five output rating for this block.",
+        "Set an output score for this round.",
+        "Give this round an output rating, one to five."
+    ]
+    private let breakRecoveryPresets: [String] = [
+        "Step away from the screen for a minute.",
+        "Look at something far away for sixty seconds.",
+        "Relax your eyes and shoulders before the next block."
     ]
     private let breakPromptPresets: [String] = [
         "Saved. Take {breakMinutes} to reset.",
@@ -284,7 +289,7 @@ final class SessionEngine {
         case .workActive, .backgroundPrep:
             total = workDuration
         case .breakTime(let n):
-            total = n >= Self.totalLoops ? longBreakDuration : shortBreakDuration
+            total = n >= max(1, totalLoops - 1) ? longBreakDuration : shortBreakDuration
         default:
             total = workDuration
         }
@@ -507,14 +512,15 @@ final class SessionEngine {
 
         guard !Task.isCancelled else { return }
 
-        if completedLoops.count >= Self.totalLoops {
+        if completedLoops.count >= totalLoops {
             await finishSession()
         } else {
-            let breakLabel = completedLoops.count >= Self.totalLoops - 1 ? "20" : "5"
+            let breakDuration = completedLoops.count >= max(1, totalLoops - 1) ? longBreakDuration : shortBreakDuration
+            let breakMinutes = max(1, Int(round(breakDuration / 60)))
             await say(selectVoiceLine(
                 cue: "break_start",
                 fallback: breakPromptPresets,
-                replacements: ["breakMinutes": "\(breakLabel) minutes", "goal": currentGoal]
+                replacements: ["breakMinutes": "\(breakMinutes) minutes", "goal": currentGoal]
             ))
             currentLoopNumber += 1
             persistCheckpoint()
@@ -525,13 +531,14 @@ final class SessionEngine {
     private func runBreak() async {
         guard !Task.isCancelled else { return }
 
-        let isLong = completedLoops.count >= Self.totalLoops
+        let isLong = completedLoops.count >= max(1, totalLoops - 1)
         let duration = isLong ? longBreakDuration : shortBreakDuration
 
         guard duration > 0 else { await runLoop(); return }
 
         withAnimation { phase = .breakTime(loopNumber: currentLoopNumber) }
         persistCheckpoint()
+        sayNonBlocking(breakRecoveryPresets.randomElement() ?? "")
         await runTimer(duration: duration)
         guard !Task.isCancelled else { return }
 
@@ -812,6 +819,7 @@ final class SessionEngine {
             currentLoopAnswers: currentLoopAnswers,
             currentLoopNumber: currentLoopNumber,
             motivationLevel: sessionMotivationLevel,
+            totalLoops: totalLoops,
             workDuration: workDuration,
             shortBreakDuration: shortBreakDuration,
             longBreakDuration: longBreakDuration,
@@ -825,6 +833,7 @@ final class SessionEngine {
         currentLoopNumber = max(1, checkpoint.currentLoopNumber)
         currentGoal = checkpoint.currentGoal
         sessionMotivationLevel = checkpoint.motivationLevel
+        totalLoops = min(6, max(1, checkpoint.totalLoops ?? 4))
         workDuration = checkpoint.workDuration
         shortBreakDuration = checkpoint.shortBreakDuration
         longBreakDuration = checkpoint.longBreakDuration

@@ -31,6 +31,7 @@ final class SessionStore {
         var currentLoopAnswers: [String]
         var currentLoopNumber: Int
         var motivationLevel: Int?
+        var totalLoops: Int?
         var workDuration: TimeInterval
         var shortBreakDuration: TimeInterval
         var longBreakDuration: TimeInterval
