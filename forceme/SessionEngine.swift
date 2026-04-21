@@ -72,6 +72,7 @@ final class SessionEngine {
     private var recordingStopped = false
     private var pendingPhoto: UIImage? = nil
     private var photoSkipped = false
+    private var timerSkipped = false
     private var currentLoopNumber: Int = 0
     private var haptic = UIImpactFeedbackGenerator(style: .light)
 
@@ -98,6 +99,10 @@ final class SessionEngine {
 
     func stopListening() {
         recordingStopped = true
+    }
+
+    func skipPhase() {
+        timerSkipped = true
     }
 
     func setBaselinePhoto(_ image: UIImage) {
@@ -339,11 +344,11 @@ final class SessionEngine {
     private func runTimer(duration: TimeInterval) async {
         timerElapsed = 0
         timerProgress = 0
+        timerSkipped = false          // ← reset so previous skip doesn't bleed through
         let start = Date()
-        timerTask?.cancel()
 
         await withTaskCancellationHandler {
-            while !Task.isCancelled {
+            while !Task.isCancelled && !timerSkipped {
                 let elapsed = Date().timeIntervalSince(start)
                 let progress = min(elapsed / duration, 1.0)
                 timerElapsed = elapsed
@@ -358,6 +363,7 @@ final class SessionEngine {
                 if progress >= 1.0 { break }
                 try? await Task.sleep(for: .milliseconds(150))
             }
+            timerProgress = 1.0       // always finish cleanly
         } onCancel: {}
     }
 

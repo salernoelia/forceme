@@ -6,6 +6,16 @@ struct RootView: View {
     @State private var settings = SettingsStore()
     @State private var session: SessionEngine?
     @State private var isBooting = true
+    @State private var messageIdx = 0
+
+    private let bootMessages = [
+        "Teaching the mic to pay attention…",
+        "Loading your focus engine…",
+        "Whisper is waking up…",
+        "Almost ready. Good things take a second.",
+        "Warming up the voice. Won't be long.",
+        "Downloading a little patience…",
+    ]
 
     var body: some View {
         ZStack {
@@ -40,16 +50,27 @@ struct RootView: View {
     }
 
     private var bootView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 24) {
             Text("Tallivity")
                 .font(.system(size: 28, weight: .light, design: .rounded))
                 .foregroundStyle(.primary)
+
             ProgressView()
-                .scaleEffect(1.2)
-            Text(speech.loadingMessage)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .animation(.easeInOut, value: speech.loadingMessage)
+                .scaleEffect(1.1)
+
+            Text(bootMessages[messageIdx])
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 48)
+                .animation(.easeInOut(duration: 0.5), value: messageIdx)
+                .id(messageIdx)
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2.2, repeats: true) { t in
+                withAnimation { messageIdx = (messageIdx + 1) % bootMessages.count }
+                if !isBooting { t.invalidate() }
+            }
         }
     }
 }

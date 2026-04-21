@@ -181,16 +181,15 @@ struct FocusView: View {
             session.longBreakDuration = Double(breakMinutes * 4) * 60
             session.startSession(userName: settings.userName)
         }) {
-            ZStack {
-                Circle()
-                    .fill(Color(.label))
-                    .frame(width: 72, height: 72)
-                Image(systemName: "play.fill")
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundStyle(Color(.systemBackground))
-                    .offset(x: 2)
-            }
+            Text("Begin")
+                .font(.body.weight(.medium))
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
         }
+        .padding(.horizontal, 40)
     }
 
     // MARK: - Work timer
@@ -210,13 +209,8 @@ struct FocusView: View {
 
                 Spacer()
 
-                // Very subtle end-early affordance
-                Button(action: { session.cancelSession() }) {
-                    Text("End session")
-                        .font(.caption2)
-                        .foregroundStyle(Color(.systemGray4))
-                }
-                .padding(.bottom, 48)
+                sessionControls(canSkip: true)
+                    .padding(.bottom, 48)
             }
         }
     }
@@ -256,12 +250,26 @@ struct FocusView: View {
 
                 Spacer()
 
-                Button(action: { session.cancelSession() }) {
-                    Text("End session")
-                        .font(.caption2)
-                        .foregroundStyle(Color(.systemGray4))
+                sessionControls(canSkip: true)
+                    .padding(.bottom, 48)
+            }
+        }
+    }
+
+    private func sessionControls(canSkip: Bool) -> some View {
+        HStack(spacing: 32) {
+            Button(action: { session.cancelSession() }) {
+                Text("End")
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemGray4))
+            }
+
+            if canSkip {
+                Button(action: { session.skipPhase() }) {
+                    Text("Skip →")
+                        .font(.caption)
+                        .foregroundStyle(Color(.systemGray3))
                 }
-                .padding(.bottom, 48)
             }
         }
     }
