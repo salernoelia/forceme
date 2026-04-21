@@ -119,9 +119,10 @@ final class SpeechEngine {
         try? configureAudioSession()
         downloadProgress = nil
         do {
-            whisper = try await makeWhisper(model: model)
-            state = .loadingModels(PromptStore.shared.string(for: "loading_synthesis"))
-            tts = try await makeTTS(voice: voice)
+            async let whisperResult = makeWhisper(model: model)
+            async let ttsResult = makeTTS(voice: voice)
+            whisper = try await whisperResult
+            tts = try await ttsResult
             downloadProgress = nil
             state = .idle
         } catch {
@@ -137,7 +138,7 @@ final class SpeechEngine {
         let config = WhisperKitConfig(
             model: model.rawValue,
             downloadBase: whisperBase,
-            prewarm: true
+            prewarm: false
         )
         let w = try await WhisperKit(config)
         try await w.loadModels()
