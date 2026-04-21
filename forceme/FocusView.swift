@@ -62,18 +62,18 @@ struct FocusView: View {
         case .qaPlayback(let i, _):
             qaView(questionIndex: i)
 
-        case .selfScore:
-            captureView(
-                title: "Score this round",
-                hint: "Say a number from 1 to 5",
-                showStop: true
-            )
+        case .selfScore(_):
+            selfScoreView
+                .transition(.opacity)
 
         case .storing:
             transitionView(text: "Storing…")
 
         case .breakTime(let loop):
             breakView(loopNumber: loop)
+
+        case .nextSessionCountdown(let loop):
+            nextSessionView(loopNumber: loop)
 
         case .sessionReport:
             if let artifact = session.finalArtifact {
@@ -192,6 +192,18 @@ struct FocusView: View {
         .padding(.horizontal, 40)
     }
 
+    // MARK: - Self score
+
+    private var selfScoreView: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            ScoreSelector { score in
+                session.submitScore(score)
+            }
+            Spacer()
+        }
+    }
+
     // MARK: - Work timer
 
     private func workView(loopNumber: Int) -> some View {
@@ -256,19 +268,40 @@ struct FocusView: View {
         }
     }
 
+    private func nextSessionView(loopNumber: Int) -> some View {
+        VStack(spacing: 16) {
+            loopDots(current: loopNumber)
+
+            VStack(spacing: 8) {
+                Text("Next session")
+                    .font(.system(size: 13, weight: .medium))
+                    .kerning(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(.tertiary)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+
+                Text("Session \(loopNumber)")
+                    .font(.system(size: 28, weight: .light, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+        }
+        .animation(.easeOut(duration: 0.5), value: loopNumber)
+    }
+
     private func sessionControls(canSkip: Bool) -> some View {
         HStack(spacing: 32) {
             Button(action: { session.cancelSession() }) {
                 Text("End")
                     .font(.caption)
-                    .foregroundStyle(Color(.systemGray4))
+                    .foregroundStyle(.tertiary)
             }
 
             if canSkip {
                 Button(action: { session.skipPhase() }) {
                     Text("Skip →")
                         .font(.caption)
-                        .foregroundStyle(Color(.systemGray3))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -277,25 +310,28 @@ struct FocusView: View {
     // MARK: - Capture (goal / score)
 
     private func captureView(title: String, hint: String, showStop: Bool) -> some View {
-        VStack(spacing: 40) {
+        VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 16) {
+            VStack(spacing: 28) {
+                // Label
                 Text(title.uppercased())
-                    .font(.caption)
-                    .kerning(1.5)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .kerning(1.6)
+                    .foregroundStyle(.tertiary)
 
+                // Live transcript or placeholder
                 Text(session.transcript.isEmpty ? hint : session.transcript)
-                    .font(.title3)
-                    .fontWeight(.regular)
+                    .font(.title3.weight(.regular))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(session.transcript.isEmpty ? .tertiary : .primary)
-                    .padding(.horizontal, 32)
-                    .animation(.easeInOut, value: session.transcript)
+                    .foregroundStyle(session.transcript.isEmpty ? .quaternary : .primary)
+                    .padding(.horizontal, 36)
+                    .animation(.easeInOut(duration: 0.2), value: session.transcript)
+
+                recordingIndicator
             }
 
-            recordingIndicator
+            Spacer()
 
             if showStop && session.isRecording {
                 Button(action: session.stopListening) {
@@ -308,9 +344,8 @@ struct FocusView: View {
                         .clipShape(Capsule())
                 }
                 .transition(.opacity)
+                .padding(.bottom, 52)
             }
-
-            Spacer()
         }
     }
 
@@ -318,47 +353,70 @@ struct FocusView: View {
         ZStack {
             if session.isRecording {
                 RecordingPulse()
-            } else {
-                Circle()
-                    .fill(Color(.systemGray5))
-                    .frame(width: 16, height: 16)
             }
         }
-        .animation(.easeInOut, value: session.isRecording)
+        .frame(height: 36)
+        .animation(.easeInOut(duration: 0.2), value: session.isRecording)
     }
 
     // MARK: - Q&A
 
     private func qaView(questionIndex: Int) -> some View {
-        VStack(spacing: 40) {
+        VStack(spacing: 0) {
+
+            // Goal anchor — always visible at top
+            VStack(spacing: 6) {
+                Text("Goal")
+                    .font(.system(size: 10, weight: .medium))
+                    .kerning(1.6)
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+                Text(session.currentGoal)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 36)
+            }
+            .padding(.top, 56)
+
             Spacer()
 
-            VStack(spacing: 16) {
-                Text("Question \(questionIndex + 1) of 3".uppercased())
-                    .font(.caption)
-                    .kerning(1.5)
-                    .foregroundStyle(.secondary)
+            // Question + answer
+            VStack(spacing: 24) {
+                // Step indicator
+                Text("\(questionIndex + 1) / 3")
+                    .font(.system(size: 11, weight: .medium))
+                    .kerning(1.2)
+                    .foregroundStyle(.tertiary)
 
+                // Question
                 Text(session.currentQuestion)
-                    .font(.title3)
-                    .fontWeight(.regular)
+                    .font(.title3.weight(.regular))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.primary)
-                    .padding(.horizontal, 32)
-                    .animation(.easeInOut, value: session.currentQuestion)
+                    .padding(.horizontal, 36)
+                    .id(session.currentQuestion)   // forces re-render on question change
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .animation(.easeOut(duration: 0.3), value: session.currentQuestion)
 
+                // Live answer — only shown when non-empty (cleared at start of each listen)
                 if !session.transcript.isEmpty {
                     Text(session.transcript)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
+                        .padding(.horizontal, 36)
                         .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.2), value: session.transcript)
                 }
+
+                recordingIndicator
             }
 
-            recordingIndicator
+            Spacer()
 
+            // Done button
             if session.isRecording {
                 Button(action: session.stopListening) {
                     Text("Next")
@@ -370,9 +428,8 @@ struct FocusView: View {
                         .clipShape(Capsule())
                 }
                 .transition(.opacity)
+                .padding(.bottom, 52)
             }
-
-            Spacer()
         }
     }
 
@@ -390,7 +447,7 @@ struct FocusView: View {
                     .textCase(.uppercase)
 
                 Text(isBaseline
-                    ? "Share a photo of where you are"
+                    ? "Share a photo of what you are working on?"
                     : "Share a photo of your work"
                 )
                 .font(.title3)

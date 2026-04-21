@@ -19,6 +19,7 @@ final class SessionEngine {
         case selfScore(loopNumber: Int)
         case storing
         case breakTime(loopNumber: Int)
+        case nextSessionCountdown(loopNumber: Int)
         case sessionReport
         case error(String)
 
@@ -32,6 +33,7 @@ final class SessionEngine {
             case (.qaPlayback(let q1, let l1), .qaPlayback(let q2, let l2)): return q1 == q2 && l1 == l2
             case (.selfScore(let a), .selfScore(let b)): return a == b
             case (.breakTime(let a), .breakTime(let b)): return a == b
+            case (.nextSessionCountdown(let a), .nextSessionCountdown(let b)): return a == b
             case (.error(let a), .error(let b)): return a == b
             default: return false
             }
@@ -64,9 +66,9 @@ final class SessionEngine {
     private var timerTask: Task<Void, Never>?
 
     private var prerenderedQuestions: [String] = [
-        "What did you actually finish?",
-        "What got in the way?",
-        "What would you do differently?"
+        "Tell me what you actually finished.",
+        "Name the main thing that got in the way.",
+        "One change you'd make next time."
     ]
 
     private var recordingStopped = false
@@ -75,6 +77,7 @@ final class SessionEngine {
     private var timerSkipped = false
     private var currentLoopNumber: Int = 0
     private var haptic = UIImpactFeedbackGenerator(style: .light)
+    private var scoreContinuation: CheckedContinuation<Int, Never>?
 
     init(speech: SpeechEngine, gemma: GemmaEngine) {
         self.speech = speech
@@ -125,8 +128,20 @@ final class SessionEngine {
         }
     }
 
+    func submitScore(_ score: Int) {
+        scoreContinuation?.resume(returning: score)
+        scoreContinuation = nil
+    }
+
     func cancelError() {
         withAnimation { phase = .idle }
+    }
+
+    var isProcessingSpeech: Bool {
+        switch speech.state {
+        case .transcribing, .speaking, .loadingModels: return true
+        default: return false
+        }
     }
 
     // MARK: - Timer display helpers
@@ -163,16 +178,15 @@ final class SessionEngine {
         memoryRecallText = nil
         finalArtifact = nil
         prerenderedQuestions = [
-            "What did you actually finish?",
-            "What got in the way?",
-            "What would you do differently?"
+            "Tell me what you actually finished.",
+            "Name the main thing that got in the way.",
+            "One change you'd make next time."
         ]
 
         // Goal capture
-        await say("What are you working on today?")
-        guard !Task.isCancelled else { return }
-
         withAnimation { phase = .goalCapture }
+        await say("Tell me your goal for today.")
+        guard !Task.isCancelled else { return }
         let goal = await listen(maxDuration: 30)
         guard !Task.isCancelled, !goal.isEmpty else {
             withAnimation { phase = .idle }
@@ -205,7 +219,7 @@ final class SessionEngine {
         }
 
         // Photo baseline
-        await say("Want to share a photo of where you are?")
+        await say("Want to share a photo of what you are working on??")
         withAnimation { phase = .photoBaseline }
         _ = await waitForPhoto(timeout: 10)
         guard !Task.isCancelled else { return }
@@ -255,9 +269,8 @@ final class SessionEngine {
 
         guard !Task.isCancelled else { return }
         withAnimation { phase = .selfScore(loopNumber: currentLoopNumber) }
-        await say("Score this round. 1 to 5.")
-        let scoreText = await listen(maxDuration: 15)
-        let score = parseScore(scoreText)
+        await say("Score this round.")
+        let score = await waitForScore()
 
         withAnimation {
             phase = .storing
@@ -265,7 +278,7 @@ final class SessionEngine {
                 goalText: currentGoal,
                 answers: currentLoopAnswers,
                 score: score,
-                scoreReason: scoreText
+                scoreReason: ""
             ))
         }
 
@@ -287,8 +300,16 @@ final class SessionEngine {
         let isLong = completedLoops.count >= Self.totalLoops
         let duration = isLong ? longBreakDuration : shortBreakDuration
 
+        guard duration > 0 else { await runLoop(); return }
+
         withAnimation { phase = .breakTime(loopNumber: currentLoopNumber) }
         await runTimer(duration: duration)
+        guard !Task.isCancelled else { return }
+
+        // Transition screen before next loop
+        withAnimation { phase = .nextSessionCountdown(loopNumber: currentLoopNumber) }
+        await say("Session \(currentLoopNumber) starting now.")
+        try? await Task.sleep(for: .seconds(2))
         guard !Task.isCancelled else { return }
 
         await runLoop()
@@ -342,29 +363,43 @@ final class SessionEngine {
     // MARK: - Timer
 
     private func runTimer(duration: TimeInterval) async {
+        guard duration > 0, !Task.isCancelled else { return }
+
         timerElapsed = 0
         timerProgress = 0
-        timerSkipped = false          // ← reset so previous skip doesn't bleed through
-        let start = Date()
+        timerSkipped = false
 
-        await withTaskCancellationHandler {
-            while !Task.isCancelled && !timerSkipped {
-                let elapsed = Date().timeIntervalSince(start)
-                let progress = min(elapsed / duration, 1.0)
-                timerElapsed = elapsed
-                timerProgress = progress
+        let clock = ContinuousClock()
+        let start = clock.now
 
-                let fiveMark = Int(elapsed / 300)
-                let prevMark = Int((elapsed - 0.15) / 300)
-                if fiveMark > prevMark && elapsed > 1 {
+        while true {
+            guard !Task.isCancelled else { return }  // cancel → do NOT set progress = 1
+            guard !timerSkipped else { break }       // skip  → fall through to set progress = 1
+
+            let elapsed = Double(clock.now - start, as: .seconds)
+            timerElapsed = min(elapsed, duration)
+            timerProgress = min(elapsed / duration, 1.0)
+
+            // 5-min haptics (only meaningful for work timers ≥ 5 min)
+            if duration >= 300 {
+                let prevElapsed = max(0, elapsed - 0.15)
+                if Int(elapsed / 300) > Int(prevElapsed / 300) && elapsed > 1 {
                     haptic.impactOccurred(intensity: 0.25)
                 }
-
-                if progress >= 1.0 { break }
-                try? await Task.sleep(for: .milliseconds(150))
             }
-            timerProgress = 1.0       // always finish cleanly
-        } onCancel: {}
+
+            if timerProgress >= 1.0 { break }
+
+            do {
+                try await Task.sleep(for: .milliseconds(150))
+            } catch {
+                return  // CancellationError → hard exit, do NOT complete timer
+            }
+        }
+
+        // Only reached on natural finish or skip — not on cancel
+        timerProgress = 1.0
+        timerElapsed = duration
     }
 
     // MARK: - Audio helpers
@@ -376,7 +411,10 @@ final class SessionEngine {
 
     private func listen(maxDuration: TimeInterval) async -> String {
         recordingStopped = false
-        withAnimation { isRecording = true }
+        withAnimation {
+            isRecording = true
+            transcript = ""   // clear stale text before each new capture
+        }
         try? speech.startRecording()
 
         let deadline = Date().addingTimeInterval(maxDuration)
@@ -403,13 +441,9 @@ final class SessionEngine {
 
     // MARK: - Helpers
 
-    private func parseScore(_ text: String) -> Int {
-        let t = text.lowercased()
-        if t.contains("one") || t.contains("1") { return 1 }
-        if t.contains("two") || t.contains("2") { return 2 }
-        if t.contains("three") || t.contains("3") { return 3 }
-        if t.contains("four") || t.contains("4") { return 4 }
-        if t.contains("five") || t.contains("5") { return 5 }
-        return 3
+    private func waitForScore() async -> Int {
+        await withCheckedContinuation { cont in
+            scoreContinuation = cont
+        }
     }
 }

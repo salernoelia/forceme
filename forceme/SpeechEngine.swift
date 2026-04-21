@@ -95,9 +95,7 @@ final class SpeechEngine {
     }
 
     private func makeTTS(voice: SettingsStore.Voice) async throws -> TTSKit {
-        let t = try await TTSKit(TTSKitConfig(model: .qwen3TTS_0_6b))
-        _ = try await t.generate(text: "Ready", voice: voice.ttsVoice, language: "english")
-        return t
+        return try await TTSKit(TTSKitConfig(model: .qwen3TTS_0_6b))
     }
 
     func startRecording() throws {

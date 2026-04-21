@@ -25,6 +25,9 @@ struct RootView: View {
                 bootView
             } else if !settings.onboardingComplete {
                 OnboardingView(speech: speech, settings: settings) {
+                    if gemma.wasDownloaded {
+                        Task { await gemma.load() }
+                    }
                     session = SessionEngine(speech: speech, gemma: gemma)
                 }
                 .transition(.opacity)
@@ -36,15 +39,17 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.4), value: isBooting)
         .animation(.easeInOut(duration: 0.4), value: settings.onboardingComplete)
         .task {
-            await speech.requestPermissionAndLoad(settings: settings)
-            if gemma.wasDownloaded {
-                Task { await gemma.load() }
-            }
-            withAnimation {
-                isBooting = false
-                if settings.onboardingComplete {
+            if settings.onboardingComplete {
+                await speech.requestPermissionAndLoad(settings: settings)
+                if gemma.wasDownloaded {
+                    Task { await gemma.load() }
+                }
+                withAnimation {
+                    isBooting = false
                     session = SessionEngine(speech: speech, gemma: gemma)
                 }
+            } else {
+                withAnimation { isBooting = false }
             }
         }
     }
@@ -55,8 +60,7 @@ struct RootView: View {
                 .font(.system(size: 28, weight: .light, design: .rounded))
                 .foregroundStyle(.primary)
 
-            ProgressView()
-                .scaleEffect(1.1)
+            BouncingDots(color: .secondary)
 
             Text(bootMessages[messageIdx])
                 .font(.subheadline)

@@ -7,10 +7,9 @@ struct OnboardingView: View {
 
     @State private var name: String = ""
     @State private var step: Step = .intro
-    @State private var isListening = false
     @FocusState private var fieldFocused: Bool
 
-    enum Step { case intro, nameInput, done }
+    enum Step { case intro, downloading, nameInput, done }
 
     var body: some View {
         ZStack {
@@ -22,6 +21,8 @@ struct OnboardingView: View {
                 switch step {
                 case .intro:
                     introContent
+                case .downloading:
+                    downloadingContent
                 case .nameInput:
                     nameContent
                 case .done:
@@ -48,14 +49,59 @@ struct OnboardingView: View {
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
 
-            Button(action: { withAnimation { step = .nameInput } }) {
-                Text("Get started")
+            VStack(spacing: 8) {
+                Text("Requires a one-time download of ~820 MB")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("Speech recognition (~216 MB) and voice synthesis (~600 MB).\nModels run entirely on your device.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+
+            Button(action: startDownload) {
+                Text("Download & get started")
                     .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+        }
+    }
+
+    private var downloadingContent: some View {
+        VStack(spacing: 32) {
+            Text("Setting up your models")
+                .font(.title3.weight(.regular))
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 16) {
+                if let progress = speech.downloadProgress {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .tint(.primary)
+                } else {
+                    BouncingDots(color: .secondary)
+                }
+
+                Text(speech.loadingMessage.isEmpty ? "Loading…" : speech.loadingMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Text("This takes a few minutes on first launch.\nModels are cached — future launches are fast.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+        }
+        .onChange(of: speech.state) { _, newState in
+            if case .idle = newState {
+                withAnimation { step = .nameInput }
             }
         }
     }
@@ -107,6 +153,11 @@ struct OnboardingView: View {
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }
+    }
+
+    private func startDownload() {
+        withAnimation { step = .downloading }
+        Task { await speech.requestPermissionAndLoad(settings: settings) }
     }
 
     private func confirmName() {

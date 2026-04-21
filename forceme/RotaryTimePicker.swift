@@ -21,33 +21,32 @@ struct RotaryTimePicker: View {
                 .foregroundStyle(.tertiary)
 
             ZStack {
-                // Selection tray
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(.tertiarySystemBackground))
                     .frame(height: itemHeight)
                     .padding(.horizontal, 8)
 
-                // Numbers
                 ZStack {
                     ForEach(Array(values.enumerated()), id: \.offset) { idx, val in
                         let relPos = CGFloat(idx - selectedIndex) * itemHeight + dragOffset
                         let dist = abs(relPos / itemHeight)
 
-                        if dist < 2.6 {
-                            Text("\(val)")
-                                .font(.system(
-                                    size: fontSize(dist: dist),
-                                    weight: dist < 0.35 ? .semibold : .light,
-                                    design: .rounded
-                                ))
-                                .foregroundStyle(.primary)
-                                .opacity(opacity(dist: dist))
-                                .scaleEffect(y: perspective(dist: dist))
-                                .offset(y: relPos)
-                                .animation(.interactiveSpring(), value: dragOffset)
-                        }
+                        Text("\(val)")
+                            .font(.system(
+                                size: fontSize(dist: dist),
+                                weight: dist < 0.35 ? .semibold : .light,
+                                design: .rounded
+                            ))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .fixedSize()
+                            .opacity(dist < 3 ? opacity(dist: dist) : 0)
+                            .scaleEffect(y: perspective(dist: dist))
+                            .offset(y: relPos)
+                            .animation(.interactiveSpring(), value: dragOffset)
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: itemHeight * 5)
                 .clipped()
             }

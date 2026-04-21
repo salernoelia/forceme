@@ -1,71 +1,59 @@
 import SwiftUI
 
 struct TimerRingView: View {
-    let progress: Double  // 0 = start, 1 = done
+    let progress: Double   // 0 = start, 1 = done
     let isWork: Bool
 
-    private var remaining: Double { max(0, 1 - progress) }
+    @State private var pulsing = false
 
-    private var sectorColor: Color {
+    private var remaining: Double { max(0, min(1, 1 - progress)) }
+
+    private var arcColor: Color {
         isWork
-            ? Color(hue: 0.06, saturation: 0.82, brightness: 0.95)   // orange
-            : Color(hue: 0.36, saturation: 0.55, brightness: 0.72)   // sage green
+            ? Color(hue: 0.06, saturation: 0.70, brightness: 0.92)
+            : Color(hue: 0.36, saturation: 0.42, brightness: 0.70)
     }
 
     var body: some View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
-            let center = CGPoint(x: size / 2, y: size / 2)
-            let radius = size / 2
+            let lineWidth = size * 0.10
 
             ZStack {
-                // Dial face
                 Circle()
-                    .fill(Color(.secondarySystemBackground))
+                    .stroke(Color.primary.opacity(0.06), lineWidth: lineWidth)
 
-                // Remaining-time sector
-                Canvas { ctx, _ in
-                    guard remaining > 0 else { return }
-                    let startAngle = Angle.degrees(-90)
-                    let endAngle = Angle.degrees(-90 + remaining * 360)
-
-                    var path = Path()
-                    path.move(to: center)
-                    path.addArc(
-                        center: center,
-                        radius: radius,
-                        startAngle: startAngle,
-                        endAngle: endAngle,
-                        clockwise: false
+                Circle()
+                    .trim(from: 0, to: remaining)
+                    .stroke(
+                        arcColor.opacity(pulsing ? 0.78 : 1.0),
+                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
-                    path.closeSubpath()
-
-                    ctx.fill(path, with: .color(sectorColor))
-                }
-                .animation(.linear(duration: 0.3), value: remaining)
-
-                // Centre hub
-                Circle()
-                    .fill(Color(.secondarySystemBackground))
-                    .frame(width: size * 0.18, height: size * 0.18)
-
-                Circle()
-                    .fill(Color(.tertiaryLabel))
-                    .frame(width: size * 0.06, height: size * 0.06)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.linear(duration: 0.25), value: remaining)
+                    .animation(
+                        .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
+                        value: pulsing
+                    )
             }
             .frame(width: size, height: size)
-            .clipShape(Circle())
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                pulsing = true
+            }
         }
     }
 }
 
 #Preview {
     HStack(spacing: 40) {
-        TimerRingView(progress: 0.3, isWork: true)
-            .frame(width: 240, height: 240)
-        TimerRingView(progress: 0.7, isWork: false)
-            .frame(width: 240, height: 240)
+        TimerRingView(progress: 0.25, isWork: true)
+            .frame(width: 220, height: 220)
+        TimerRingView(progress: 0.6, isWork: false)
+            .frame(width: 220, height: 220)
     }
     .padding(40)
+    .background(Color(.systemBackground))
 }
