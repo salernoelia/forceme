@@ -1,4 +1,10 @@
-A CoreML implementation of the Silero Voice Activity Detection (VAD) model, optimized for Apple platforms (iOS/macOS). This repository contains pre-converted CoreML models ready for use in Swift applications.
+what we can see in the local `models/` dir: ""
+
+.mlmodelc = compiled, Xcode-ready. .mlpackage = source, not what you drag into Xcode
+unified-256ms over the others — 256ms chunks match Whisper's input cadence well, "unified" handles both speech/non-speech in one pass, v6.0.0 is current
+Skip silero_vad_se_trained_4bit.mlmodelc — the SE (speech enhancement) variant adds complexity you don't need; plain VAD is sufficient here ""
+
+A CoreML implementation of the Silero Voice Activity Detection (VAD) model, optimized for Apple platforms (iOS/macOS). This repository contains pre-converted CoreML models ready for use in Swift applications. 
 
 See FluidAudio Repo link at the top for more information
 
