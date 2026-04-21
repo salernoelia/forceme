@@ -84,6 +84,70 @@ final class SessionEngine {
     private var pendingScore: Int?
     private var pendingMotivation: Int?
     private var sessionMotivationLevel: Int?
+    private let workStartPrompts: [String] = [
+        "Gentle start. {minutes} for your goal.",
+        "Settling in for {minutes}.",
+        "One calm block: {minutes}.",
+        "Take it steady for {minutes}.",
+        "Small steps now, {minutes} total.",
+        "Your focus window is {minutes}.",
+        "Quiet pace, {minutes}, begin.",
+        "Here is your {minutes} work block.",
+        "Lets ease into {minutes} of progress.",
+        "This round is {minutes}. No rush.",
+        "Start softly: {minutes}.",
+        "You have {minutes}. Keep it simple."
+    ]
+    private let goalPromptPresets: [String] = [
+        "What matters most for this session?",
+        "Name one clear goal for this block.",
+        "What do you want done by the end?",
+        "Give me your focus goal in one line.",
+        "Whats the main outcome you want today?"
+    ]
+    private let photoPromptPresets: [String] = [
+        "Want a quick baseline photo?",
+        "Optional photo check-in before you begin.",
+        "Take a quick starting photo if you want.",
+        "Baseline photo is optional, your call.",
+        "Add a start photo if it helps."
+    ]
+    private let roundEndPresets: [String] = [
+        "Nice effort. Lets check progress on {goal}.",
+        "Good work. Quick review for {goal}.",
+        "Round complete. Where did {goal} move forward?",
+        "Solid block. Lets reflect on {goal}.",
+        "Great, pause and check progress on {goal}."
+    ]
+    private let scorePromptPresets: [String] = [
+        "How did this round feel, for {goal}?",
+        "Give this block a score for {goal}.",
+        "Quick score: how well did {goal} go?",
+        "Rate your progress on {goal} this round.",
+        "Pick a score for this step on {goal}."
+    ]
+    private let breakPromptPresets: [String] = [
+        "Saved. Take {breakMinutes} to reset.",
+        "Nice save. Rest for {breakMinutes}.",
+        "Progress stored. {breakMinutes} break now.",
+        "Good round. Take {breakMinutes}, then continue.",
+        "Locked in. Enjoy {breakMinutes} of rest."
+    ]
+    private let nextSessionPromptPresets: [String] = [
+        "Session {sessionNumber} begins now. Back to {goal}.",
+        "Round {sessionNumber} starts now. Continue {goal}.",
+        "Next block starts now: session {sessionNumber}.",
+        "Session {sessionNumber}, gentle restart on {goal}.",
+        "Here comes session {sessionNumber}. Keep {goal} moving."
+    ]
+    private let sessionDonePresets: [String] = [
+        "Session complete. You showed up for {goal}.",
+        "Thats the full session. Nice work on {goal}.",
+        "You are done for now. Progress made on {goal}.",
+        "Session closed. You moved {goal} forward.",
+        "Complete. You gave {goal} real effort today."
+    ]
+    private var generatedVoiceLines: [String: [String]] = [:]
 
     init(speech: SpeechEngine, gemma: GemmaEngine) {
         self.speech = speech
@@ -217,7 +281,7 @@ final class SessionEngine {
 
         // Goal capture
         withAnimation { phase = .goalCapture }
-        await say("Tell me your goal for today.")
+        await say(goalPromptPresets.randomElement() ?? "Tell me your goal for today.")
         guard !Task.isCancelled else { return }
         let goal = await listen(maxDuration: 30)
         guard !Task.isCancelled, !goal.isEmpty else {
@@ -225,6 +289,10 @@ final class SessionEngine {
             return
         }
         currentGoal = goal
+
+        Task { [weak self] in
+            await self?.generateDynamicVoiceLines(for: goal)
+        }
 
         // Memory recall (non-blocking, runs concurrently on main actor)
         Task { [weak self] in
@@ -251,7 +319,11 @@ final class SessionEngine {
         }
 
         // Photo baseline
-        await say("Want to share a photo of what you are working on??")
+        await say(selectVoiceLine(
+            cue: "photo_baseline",
+            fallback: photoPromptPresets,
+            replacements: ["goal": currentGoal]
+        ))
         withAnimation { phase = .photoBaseline }
         _ = await waitForPhoto(timeout: 10)
         guard !Task.isCancelled else { return }
@@ -265,7 +337,7 @@ final class SessionEngine {
 
         withAnimation { phase = .backgroundPrep(loopNumber: currentLoopNumber) }
 
-        await say("Let's go. 25 minutes.")
+        await say(workStartPrompt())
         UIApplication.shared.isIdleTimerDisabled = true
         phase = .workActive(loopNumber: currentLoopNumber)
         await runTimer(duration: workDuration)
@@ -280,7 +352,11 @@ final class SessionEngine {
         guard !Task.isCancelled else { return }
 
         withAnimation { phase = .roundEnd }
-        await say("Good. Let's see where you got to.")
+        await say(selectVoiceLine(
+            cue: "round_end",
+            fallback: roundEndPresets,
+            replacements: ["goal": currentGoal]
+        ))
         guard !Task.isCancelled else { return }
 
         withAnimation { phase = .photoDelta }
@@ -301,7 +377,11 @@ final class SessionEngine {
 
         guard !Task.isCancelled else { return }
         withAnimation { phase = .selfScore(loopNumber: currentLoopNumber) }
-        await say("Score this round.")
+        await say(selectVoiceLine(
+            cue: "self_score",
+            fallback: scorePromptPresets,
+            replacements: ["goal": currentGoal]
+        ))
         let score = await waitForScore()
 
         withAnimation {
@@ -320,7 +400,11 @@ final class SessionEngine {
             await finishSession()
         } else {
             let breakLabel = completedLoops.count >= Self.totalLoops - 1 ? "20" : "5"
-            await say("Stored. Rest for \(breakLabel) minutes.")
+            await say(selectVoiceLine(
+                cue: "break_start",
+                fallback: breakPromptPresets,
+                replacements: ["breakMinutes": "\(breakLabel) minutes", "goal": currentGoal]
+            ))
             currentLoopNumber += 1
             await runBreak()
         }
@@ -340,7 +424,11 @@ final class SessionEngine {
 
         // Transition screen before next loop
         withAnimation { phase = .nextSessionCountdown(loopNumber: currentLoopNumber) }
-        await say("Session \(currentLoopNumber) starting now.")
+        await say(selectVoiceLine(
+            cue: "next_session",
+            fallback: nextSessionPromptPresets,
+            replacements: ["sessionNumber": "\(currentLoopNumber)", "goal": currentGoal]
+        ))
         try? await Task.sleep(for: .seconds(2))
         guard !Task.isCancelled else { return }
 
@@ -385,7 +473,11 @@ final class SessionEngine {
         store.save(artifact)
         withAnimation { finalArtifact = artifact }
 
-        await say("That's the session.")
+        await say(selectVoiceLine(
+            cue: "session_done",
+            fallback: sessionDonePresets,
+            replacements: ["goal": currentGoal]
+        ))
         try? await Task.sleep(for: .seconds(1))
         if !closing.isEmpty { await say(closing) }
 
@@ -474,6 +566,78 @@ final class SessionEngine {
     }
 
     // MARK: - Helpers
+
+    private func workStartPrompt() -> String {
+        let minutes = max(1, Int(round(workDuration / 60)))
+        let minuteText = "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
+        let template = workStartPrompts.randomElement() ?? "Lets go. {minutes}."
+        return template.replacingOccurrences(of: "{minutes}", with: minuteText)
+    }
+
+    private func selectVoiceLine(cue: String, fallback: [String], replacements: [String: String]) -> String {
+        let generated = generatedVoiceLines[cue] ?? []
+        let pool = generated.isEmpty ? fallback : generated
+        var line = pool.randomElement() ?? fallback.first ?? ""
+        for (key, value) in replacements {
+            line = line.replacingOccurrences(of: "{\(key)}", with: value)
+        }
+        return line
+    }
+
+    private func generateDynamicVoiceLines(for goal: String) async {
+        let prompt = """
+        Create short supportive spoken lines for a focus coach app.
+        Goal: \(goal)
+
+        Return ONLY valid JSON object with these keys:
+        - photo_baseline
+        - round_end
+        - self_score
+        - break_start
+        - next_session
+        - session_done
+
+        Rules:
+        - Each key: array of exactly 5 strings.
+        - Each string must be 3 to 10 words.
+        - Tone: calm, encouraging, low-pressure.
+        - Mention the goal naturally in some lines.
+        - Use placeholders when needed:
+          - {goal}
+          - {breakMinutes}
+          - {sessionNumber}
+        - No exclamation marks.
+        - No markdown, no extra text.
+        """
+
+        await gemma.generate(prompt: prompt)
+        let raw = gemma.output
+        guard let data = raw.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: [String]] else {
+            return
+        }
+
+        var normalized: [String: [String]] = [:]
+        for (key, values) in dict {
+            let cleaned = values
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .map { sentence in
+                    let words = sentence.split(separator: " ")
+                    if words.count > 10 {
+                        return words.prefix(10).joined(separator: " ")
+                    }
+                    return sentence
+                }
+            if !cleaned.isEmpty {
+                normalized[key] = Array(cleaned.prefix(5))
+            }
+        }
+
+        if !normalized.isEmpty {
+            generatedVoiceLines = normalized
+        }
+    }
 
     private func waitForScore() async -> Int {
         if let pendingScore {
