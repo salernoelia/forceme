@@ -148,18 +148,18 @@ struct FocusView: View {
                         .font(.system(size: 34, weight: .light, design: .rounded))
                         .foregroundStyle(.primary)
 
-                    if let recall = session.memoryRecallText {
-                        Text(recall)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                            .transition(.opacity)
-                    } else if let checkpoint = session.pendingCheckpoint {
-                        resumePill(checkpoint: checkpoint)
-                    } else if let latest = SessionStore.shared.latest {
-                        lastSessionPill(artifact: latest)
-                    }
+                    // if let recall = session.memoryRecallText {
+                    //     Text(recall)
+                    //         .font(.callout)
+                    //         .foregroundStyle(.secondary)
+                    //         .multilineTextAlignment(.center)
+                    //         .padding(.horizontal, 40)
+                    //         .transition(.opacity)
+                    // } else if let checkpoint = session.pendingCheckpoint {
+                    //     resumePill(checkpoint: checkpoint)
+                    // } else if let latest = SessionStore.shared.latest {
+                    //     lastSessionPill(artifact: latest)
+                    // }
                 }
 
                 timePickers
@@ -167,7 +167,7 @@ struct FocusView: View {
                 startButton
             }
 
-            Spacer()
+            // Spacer()
             Spacer()
         }
     }

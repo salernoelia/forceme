@@ -11,15 +11,24 @@ class WhisperModelManager {
     
     /// Ahead-of-Time compilation of a raw model package
     func compileModelIfNeeded(at rawModelURL: URL) async throws -> URL {
-        let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let permanentURL = documentsDirectory.appendingPathComponent("optimized_whisper.mlmodelc")
+        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let permanentURL = docs.appendingPathComponent("optimized_whisper.mlmodelc")
         
         if fileManager.fileExists(atPath: permanentURL.path) {
+            print("Found existing compiled model at \(permanentURL.path)")
             return permanentURL
         }
         
+        print("Compiling raw model for AOT storage...")
         let compiledTempURL = try await MLModel.compileModel(at: rawModelURL)
+        
+        // Ensure destination is clean
+        if fileManager.fileExists(atPath: permanentURL.path) {
+            try fileManager.removeItem(at: permanentURL)
+        }
+        
         try fileManager.moveItem(at: compiledTempURL, to: permanentURL)
+        print("Successfully moved compiled model to persistent storage: \(permanentURL.path)")
         return permanentURL
     }
     

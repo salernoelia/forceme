@@ -83,20 +83,17 @@ struct TallyvityWidgetLiveActivity: Widget {
                     .padding(.bottom, 8)
                 }
 
-            } compactLeading: {
-                Text(context.attributes.shortGoal)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.leading, 4)
-            } compactTrailing: {
-                HStack(spacing: 4) {
+                } compactLeading: {
                     Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
+                        .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                        .font(.caption2.weight(.bold))
+                } compactTrailing: {
                     Text(context.state.endDate, style: .timer)
                         .monospacedDigit()
-                }
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(context.state.isWork ? .orange : .cyan)
-            } minimal: {
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(context.state.isWork ? .orange : .cyan)
+                        .frame(maxWidth: 36)
+                } minimal: {
                 Image(systemName: context.state.isWork ? "brain.head.profile" : "cup.and.saucer")
                     .foregroundStyle(context.state.isWork ? .orange : .cyan)
                     .font(.caption2.weight(.bold))

@@ -15,17 +15,19 @@ final class CoreMLModelManager {
         let permanentURL = docs.appendingPathComponent("\(name).mlmodelc")
         
         if fileManager.fileExists(atPath: permanentURL.path) {
+            print("Model \(name) already exists at \(permanentURL.path)")
             return permanentURL
         }
         
-        // AOT Compilation
+        print("Compiling model \(name) for persistence...")
         let tempURL = try await MLModel.compileModel(at: rawURL)
         
-        // Move to persistent storage
-        if !fileManager.fileExists(atPath: permanentURL.path) {
-            try fileManager.moveItem(at: tempURL, to: permanentURL)
+        if fileManager.fileExists(atPath: permanentURL.path) {
+            try fileManager.removeItem(at: permanentURL)
         }
         
+        try fileManager.moveItem(at: tempURL, to: permanentURL)
+        print("Stored compiled model \(name) at \(permanentURL.path)")
         return permanentURL
     }
     

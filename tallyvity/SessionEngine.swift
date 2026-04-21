@@ -509,7 +509,6 @@ final class SessionEngine {
             replacements: ["goal": currentGoal]
         ))
         let score = await waitForScore()
-        try? await Task.sleep(for: .seconds(0.8))
 
         withAnimation {
             phase = .storing
