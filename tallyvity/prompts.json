@@ -40,6 +40,14 @@
       ]
     },
     "extension_added": "Extension added. Ten more minutes.",
+    "motivation_low_framing": {
+      "cue": "motivation_low_framing_prompt",
+      "fallback": "Low energy works better in short bursts. Let's do 5 minutes and see."
+    },
+    "blocker_pattern": {
+      "cue": "blocker_pattern_prompt",
+      "fallback": "That blocker came up again — worth making a note of it."
+    },
     "starter_continue": {
       "cue": "starter_continue_prompt",
       "fallback": "Do you want to continue into the full flow?"
@@ -58,10 +66,10 @@
     "self_score": {
       "cue": "self_score_prompt",
       "presets": [
-        "Rate your output this round, one to five.",
-        "Rate your output this round for {goal}.",
-        "Choose a one-to-five output rating for this block.",
-        "Set an output score for this round.",
+        "How much of the goal did you complete? Rate one to five.",
+        "Based on output, rate this round one to five.",
+        "Choose a one to five completion rating for this block.",
+        "How much did you get done? Choose a score.",
         "Give this round an output rating, one to five."
       ]
     },
@@ -76,11 +84,11 @@
     "break_start": {
       "cue": "break_start_prompt",
       "presets": [
-        "Saved. Take {breakMinutes} to reset.",
-        "Nice save. Rest for {breakMinutes}.",
-        "Progress stored. {breakMinutes} break now.",
-        "Good round. Take {breakMinutes}, then continue.",
-        "Locked in. Enjoy {breakMinutes} of rest."
+        "Saved. Stand up or walk around for {breakMinutes}.",
+        "Nice save. Look away from the screen for {breakMinutes}.",
+        "Progress stored. Step away and look outside for {breakMinutes}.",
+        "Good round. Stand up and rest your eyes for {breakMinutes}.",
+        "Locked in. Walk away from the screen for {breakMinutes}."
       ]
     },
     "next_session": {

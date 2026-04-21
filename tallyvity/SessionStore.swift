@@ -17,6 +17,7 @@ struct SessionArtifact: Codable, Identifiable {
     var intentNext: String
     var loopsCompleted: Int
     var closingSentence: String
+    var finalAnswers: [String]
 }
 
 final class SessionStore {
@@ -47,6 +48,10 @@ final class SessionStore {
 
     private var checkpointURL: URL {
         artifactsDir.appendingPathComponent("active_session_checkpoint.json")
+    }
+
+    func compareSimilarity(_ text1: String, _ text2: String) -> Double {
+        return cosineSimilarity(semanticTokens(text1), semanticTokens(text2))
     }
 
     func save(_ artifact: SessionArtifact) {

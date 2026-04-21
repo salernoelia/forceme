@@ -13,6 +13,7 @@ struct SessionReportView: View {
                 VStack(alignment: .leading, spacing: 32) {
                     header
                     scores
+                    if !artifact.finalAnswers.isEmpty { answersSection }
                     if let level = artifact.motivationLevel { motivationRow(level) }
                     if !artifact.blocker.isEmpty { blockerRow }
                     if !artifact.intentNext.isEmpty { nextRow }
@@ -67,6 +68,32 @@ struct SessionReportView: View {
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+            }
+        }
+    }
+
+    private var answersSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Reflection")
+                .font(.caption)
+                .kerning(1.2)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+
+            let qs = PromptStore.shared.presets(for: "default_qa_questions")
+            ForEach(0..<min(3, artifact.finalAnswers.count), id: \.self) { j in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(qs.indices.contains(j) ? qs[j] : "Question \(j+1)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(artifact.finalAnswers[j].isEmpty ? "—" : artifact.finalAnswers[j])
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
     }
@@ -142,7 +169,8 @@ struct SessionReportView: View {
         score: 3.5, blocker: "kept rewriting same paragraph",
         intentNext: "set word count target first",
         loopsCompleted: 2,
-        closingSentence: "Alex, today you completed 2 loops on writing quarterly report. Kept rewriting same paragraph was the main friction. Set word count target first is where to start next time."
+        closingSentence: "Alex, today you completed 2 loops on writing quarterly report. Kept rewriting same paragraph was the main friction. Set word count target first is where to start next time.",
+        finalAnswers: ["Finished the intro section", "Got distracted by email", "Set a word count target first"]
     )
     return SessionReportView(loops: loops, artifact: artifact) {}
 }

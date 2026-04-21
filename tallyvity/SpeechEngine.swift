@@ -204,16 +204,22 @@ final class SpeechEngine {
     }
 
     func speak(text: String) async {
-        stopAll()
+        cuePlayer?.stop()
+        cuePlayer = nil
+        recorder?.stop()
+        recorder = nil
         guard let tts else { return }
         do {
+            state = .speaking
             let session = AVAudioSession.sharedInstance()
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
             try? session.setCategory(.playback, mode: .default)
             try? session.setActive(true)
             try await tts.play(text: text, voice: currentVoice.ttsVoice, language: "english")
             try? configureAudioSession()
-        } catch {}
+            if case .speaking = state { state = .idle }
+        } catch {
+            if case .speaking = state { state = .idle }
+        }
     }
 
     func transcribeRecording() async -> String {
@@ -235,7 +241,10 @@ final class SpeechEngine {
 
     @discardableResult
     func playCue(named name: String) -> Bool {
-        stopAll()
+        cuePlayer?.stop()
+        cuePlayer = nil
+        recorder?.stop()
+        recorder = nil
         let voiceDir = currentVoice.rawValue.lowercased()
         let extensions = ["m4a", "wav"]
         var candidates: [URL?] = []

@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct OnboardingView: View {
     var speech: SpeechEngine
@@ -157,7 +158,10 @@ struct OnboardingView: View {
 
     private func startDownload() {
         withAnimation { step = .downloading }
-        Task { await speech.requestPermissionAndLoad(settings: settings) }
+        Task {
+            await speech.requestPermissionAndLoad(settings: settings)
+            try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+        }
     }
 
     private func confirmName() {

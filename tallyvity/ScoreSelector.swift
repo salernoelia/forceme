@@ -5,9 +5,8 @@ struct ScoreSelector: View {
     var onTapRate: (() -> Void)? = nil
 
     @State private var selected: Int? = nil
-    @State private var scales: [CGFloat] = Array(repeating: 1.0, count: 5)
     @State private var submitted = false
-    @State private var animationTask: Task<Void, Never>?
+
 
     var body: some View {
         VStack(spacing: 36) {
@@ -27,65 +26,59 @@ struct ScoreSelector: View {
                                 .strokeBorder(Color.primary.opacity(filled ? 0 : 0.28), lineWidth: 1.5)
                         )
                         .frame(width: 38, height: 38)
-                        .scaleEffect(scales[i - 1])
+
                         .onTapGesture {
                             guard !submitted else { return }
-                            onTapRate?()
                             tap(i)
+                            onTapRate?()
                         }
                 }
             }
 
             if let s = selected {
-                Text(label(s))
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
+                VStack(spacing: 4) {
+                    Text(label(s))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(anchor(s))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
         }
         .animation(.easeInOut(duration: 0.2), value: selected)
-        .onDisappear {
-            animationTask?.cancel()
-            animationTask = nil
-        }
+
     }
 
     private func tap(_ i: Int) {
-        animationTask?.cancel()
         selected = i
         submitted = true
         onSelect(i)
-        animationTask = Task { @MainActor in
-            for j in 0..<i {
-                if Task.isCancelled { return }
-                if j > 0 {
-                    try? await Task.sleep(for: .seconds(0.06))
-                }
-                if Task.isCancelled { return }
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.38)) {
-                    setScale(1.45, at: j)
-                }
-                try? await Task.sleep(for: .seconds(0.18))
-                if Task.isCancelled { return }
-                withAnimation(.spring(response: 0.36, dampingFraction: 0.55)) {
-                    setScale(1.0, at: j)
-                }
-            }
-        }
+
     }
 
-    private func setScale(_ value: CGFloat, at index: Int) {
-        guard scales.indices.contains(index) else { return }
-        scales[index] = value
-    }
+
 
     private func label(_ score: Int) -> String {
         switch score {
-        case 1: return "rough"
-        case 2: return "below par"
-        case 3: return "decent"
-        case 4: return "solid"
-        case 5: return "excellent"
+        case 1: return "didn't start"
+        case 2: return "partial start"
+        case 3: return "meaningful progress"
+        case 4: return "substantially complete"
+        case 5: return "task complete"
+        default: return ""
+        }
+    }
+
+    private func anchor(_ score: Int) -> String {
+        switch score {
+        case 1: return "did not start stated task"
+        case 2: return "started, less than half done"
+        case 3: return "meaningful progress made"
+        case 4: return "task substantially complete"
+        case 5: return "task complete, possibly exceeded"
         default: return ""
         }
     }

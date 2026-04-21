@@ -7,6 +7,7 @@ struct FocusView: View {
 
     @State private var showSettings = false
     @State private var showCamera = false
+    @State private var showHistory = false
     @State private var focusMinutes = 25
     @State private var breakMinutes = 5
     @State private var loopCount = 4
@@ -22,6 +23,9 @@ struct FocusView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(gemma: gemma, settings: settings)
         }
+        .sheet(isPresented: $showHistory) {
+            SessionHistoryView(session: session, settings: settings)
+        }
         .sheet(isPresented: $showCamera) {
             CameraPickerView { image in
                 session.setBaselinePhoto(image)
@@ -30,7 +34,7 @@ struct FocusView: View {
             .ignoresSafeArea()
         }
         .task {
-            session.resumeSessionIfAvailable(userName: settings.userName)
+            session.loadPendingCheckpoint(userName: settings.userName)
         }
         .confirmationDialog(
             "End Session?",
@@ -79,7 +83,7 @@ struct FocusView: View {
             workView(loopNumber: loop)
 
         case .roundEnd:
-            transitionView(text: "Good.", showContinue: true)
+            transitionView(text: "Good.", showContinue: false)
 
         case .photoDelta:
             photoPromptView(isBaseline: false)
@@ -119,7 +123,14 @@ struct FocusView: View {
     private var idleView: some View {
         VStack(spacing: 0) {
             HStack {
+                Button(action: { showHistory = true }) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 20, weight: .light))
+                        .foregroundStyle(.secondary)
+                }
+
                 Spacer()
+
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
                         .font(.system(size: 20, weight: .light))
@@ -144,6 +155,8 @@ struct FocusView: View {
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 40)
                             .transition(.opacity)
+                    } else if let checkpoint = session.pendingCheckpoint {
+                        resumePill(checkpoint: checkpoint)
                     } else if let latest = SessionStore.shared.latest {
                         lastSessionPill(artifact: latest)
                     }
@@ -157,6 +170,28 @@ struct FocusView: View {
             Spacer()
             Spacer()
         }
+    }
+
+    private func resumePill(checkpoint: SessionStore.SessionCheckpoint) -> some View {
+        Button(action: { showHistory = true }) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+                Text(checkpoint.currentGoal.isEmpty ? "Session in progress" : checkpoint.currentGoal)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var timePickers: some View {
@@ -211,6 +246,7 @@ struct FocusView: View {
         .background(Color(.secondarySystemBackground))
         .clipShape(Capsule())
     }
+
 
     private var startButton: some View {
         Button(action: {
@@ -441,7 +477,7 @@ struct FocusView: View {
 
             Spacer()
 
-            if canRetry {
+            if canRetry && !session.isRecording {
                 HStack(spacing: 24) {
                     Button(action: session.retryGoal) {
                         Text("Retry")
@@ -643,47 +679,7 @@ struct FocusView: View {
     }
     
     private var sessionReadyView: some View {
-        VStack(spacing: 0) {
-            Spacer()
-            
-            VStack(spacing: 32) {
-                VStack(spacing: 12) {
-                    Text("Ready")
-                        .font(.system(size: 11, weight: .medium))
-                        .kerning(1.6)
-                        .foregroundStyle(.tertiary)
-                        .textCase(.uppercase)
-                    
-                    Text(session.currentGoal)
-                        .font(.title2.weight(.light))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-                
-                Button(action: {
-                    session.confirmStartSession()
-                }) {
-                    HStack(spacing: 12) {
-                        Text("Start Session")
-                            .font(.headline.weight(.medium))
-                    }
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 18)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(Capsule())
-                }
-            }
-            
-            Spacer()
-            
-            Button(action: session.backToGoal) {
-                Text("Edit Goal")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.bottom, 52)
-        }
+        SessionReadyView(session: session)
     }
 
     // MARK: - Transition overlay
@@ -703,18 +699,9 @@ struct FocusView: View {
             Text(text)
                 .font(.system(size: 22, weight: .light))
                 .foregroundStyle(.secondary)
-
-            if showContinue {
-                Button(action: { session.skipBreakAndResume() }) {
-                    Text("Continue")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Color(.secondarySystemBackground))
-                        .clipShape(Capsule())
-                }
-            }
+            
+            // Continue button intentionally removed per user request:
+            // "when it says 'good', clicking continue does not do anything until the sound finished playing, so remove the button and automatically move on isntead."
         }
     }
 
@@ -742,6 +729,63 @@ private extension FocusView {
             return session.isProcessingSpeech ? Color(.tertiaryLabel) : Color(.secondaryLabel)
         }
         return session.isProcessingSpeech ? Color(.secondaryLabel) : .primary
+    }
+}
+
+// MARK: - Session ready (editable goal)
+
+struct SessionReadyView: View {
+    var session: SessionEngine
+    @State private var goalText: String = ""
+    @FocusState private var fieldFocused: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            VStack(spacing: 32) {
+                VStack(spacing: 16) {
+                    Text("Your goal")
+                        .font(.system(size: 11, weight: .medium))
+                        .kerning(1.6)
+                        .foregroundStyle(.tertiary)
+                        .textCase(.uppercase)
+
+                    TextField("", text: $goalText, axis: .vertical)
+                        .font(.title2.weight(.light))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .padding(.horizontal, 40)
+                        .focused($fieldFocused)
+                        .onChange(of: goalText) { _, new in
+                            session.updateGoal(new)
+                        }
+                }
+
+                Button(action: {
+                    fieldFocused = false
+                    session.confirmStartSession()
+                }) {
+                    Text("Start Session")
+                        .font(.headline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 18)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(Capsule())
+                }
+            }
+
+            Spacer()
+
+            Button(action: session.backToGoal) {
+                Text("← Record again")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.bottom, 52)
+        }
+        .onAppear { goalText = session.currentGoal }
     }
 }
 

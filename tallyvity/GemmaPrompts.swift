@@ -12,16 +12,17 @@ enum GemmaPrompts {
         """
     }
 
-    static func createArtifact(goal: String, loops: [LoopRecord]) -> String {
-        let summary = loops.enumerated().map { i, l in
-            "Loop \(i+1) [score \(l.score)]: finished=\(l.answers.first ?? "unknown"). blocker=\(l.answers.count > 1 ? l.answers[1] : "none"). next=\(l.answers.count > 2 ? l.answers[2] : "none")"
-        }.joined(separator: "\n")
+    static func createArtifact(goal: String, loops: [LoopRecord], finalAnswers: [String]) -> String {
+        let scores = loops.enumerated().map { i, l in "Loop \(i+1): score \(l.score)/5" }.joined(separator: ", ")
+        let qa = finalAnswers.enumerated().map { i, a in "Q\(i+1): \(a.isEmpty ? "no answer" : a)" }.joined(separator: "\n")
 
         return """
         Extract facts from this work session. Output ONLY valid JSON, no other text, no markdown.
 
         Goal: \(goal)
-        \(summary)
+        Scores: \(scores)
+        Reflection answers:
+        \(qa)
 
         Required JSON: {"blocker": "main friction in one short phrase", "intent_next": "user's stated next action in one short phrase"}
         """
