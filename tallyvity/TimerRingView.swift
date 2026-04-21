@@ -3,6 +3,7 @@ import SwiftUI
 struct TimerRingView: View {
     let progress: Double   // 0 = start, 1 = done
     let isWork: Bool
+    let remainingTime: TimeInterval
 
     @State private var pulsing = false
 
@@ -33,6 +34,11 @@ struct TimerRingView: View {
                         .easeInOut(duration: 2.6).repeatForever(autoreverses: true),
                         value: pulsing
                     )
+
+                Text(formattedTime)
+                    .font(.system(size: size * 0.17, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
             .frame(width: size, height: size)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -42,6 +48,13 @@ struct TimerRingView: View {
                 pulsing = true
             }
         }
+    }
+
+    private var formattedTime: String {
+        let total = max(0, Int(remainingTime.rounded()))
+        let minutes = total / 60
+        let seconds = total % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
 
@@ -70,9 +83,9 @@ private struct TimerArc: Shape {
 
 #Preview {
     HStack(spacing: 40) {
-        TimerRingView(progress: 0.25, isWork: true)
+        TimerRingView(progress: 0.25, isWork: true, remainingTime: 18 * 60 + 42)
             .frame(width: 220, height: 220)
-        TimerRingView(progress: 0.6, isWork: false)
+        TimerRingView(progress: 0.6, isWork: false, remainingTime: 2 * 60 + 15)
             .frame(width: 220, height: 220)
     }
     .padding(40)

@@ -234,8 +234,12 @@ struct FocusView: View {
 
                 Spacer()
 
-                TimerRingView(progress: session.timerProgress, isWork: true)
-                    .frame(width: 280, height: 280)
+                TimerRingView(
+                    progress: session.timerProgress,
+                    isWork: true,
+                    remainingTime: session.remainingTime
+                )
+                .frame(width: 280, height: 280)
 
                 Spacer()
 
@@ -270,8 +274,12 @@ struct FocusView: View {
 
                 Spacer()
 
-                TimerRingView(progress: session.timerProgress, isWork: false)
-                    .frame(width: 280, height: 280)
+                TimerRingView(
+                    progress: session.timerProgress,
+                    isWork: false,
+                    remainingTime: session.remainingTime
+                )
+                .frame(width: 280, height: 280)
 
                 Text("Rest")
                     .font(.system(size: 15, weight: .light))

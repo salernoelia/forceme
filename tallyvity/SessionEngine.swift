@@ -365,15 +365,17 @@ final class SessionEngine {
         updateScreenAwake(enabled: true)
         phase = .workActive(loopNumber: currentLoopNumber)
         persistCheckpoint()
-        await runTimer(duration: workDuration)
+        let endedBySkip = await runTimer(duration: workDuration)
         guard !Task.isCancelled else { updateScreenAwake(enabled: false); return }
 
-        let shouldExtend = await waitForFlowExtensionDecision()
+        withAnimation { phase = .roundEnd }
+        let shouldExtend = endedBySkip ? false : await waitForFlowExtensionDecision()
         if shouldExtend {
             workDuration = 10 * 60
             withAnimation { phase = .workActive(loopNumber: currentLoopNumber) }
             await say("Extension added. Ten more minutes.")
-            await runTimer(duration: workDuration)
+            _ = await runTimer(duration: workDuration)
+            withAnimation { phase = .roundEnd }
         }
 
         haptic.impactOccurred(intensity: 0.7)
@@ -555,7 +557,7 @@ final class SessionEngine {
 
     // MARK: - Timer
 
-    private func runTimer(duration: TimeInterval) async {
+    private func runTimer(duration: TimeInterval) async -> Bool {
         guard duration > 0, !Task.isCancelled else { return }
 
         timerElapsed = 0
@@ -566,7 +568,7 @@ final class SessionEngine {
         let start = clock.now
 
         while true {
-            guard !Task.isCancelled else { return }  // cancel → do NOT set progress = 1
+            guard !Task.isCancelled else { return false }  // cancel → do NOT set progress = 1
             guard !timerSkipped else { break }       // skip  → fall through to set progress = 1
 
             let d = clock.now - start
@@ -587,13 +589,15 @@ final class SessionEngine {
             do {
                 try await Task.sleep(for: .milliseconds(150))
             } catch {
-                return  // CancellationError → hard exit, do NOT complete timer
+                return false  // CancellationError → hard exit, do NOT complete timer
             }
         }
 
         // Only reached on natural finish or skip — not on cancel
+        let skipped = timerSkipped
         timerProgress = 1.0
         timerElapsed = duration
+        return skipped
     }
 
     // MARK: - Audio helpers
@@ -739,8 +743,7 @@ final class SessionEngine {
     }
 
     private func waitForFlowExtensionDecision() async -> Bool {
-        await say("If you want extra time, say keep going in the next 30 seconds.")
-        let decision = await listen(maxDuration: 6).lowercased()
+        let decision = await listen(maxDuration: 2.2).lowercased()
         return decision.contains("keep going") || decision.contains("extend") || decision.contains("more time")
     }
 
